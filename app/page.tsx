@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-// --- CONFIGURATION DYNAMIQUE DES 12 PRODUITS ---
+// --- CONFIGURATION DYNAMIQUE DES PRODUITS ---
 interface FormField {
   id: string;
   label: string;
@@ -20,38 +20,19 @@ interface DocumentConfig {
   title: string;
   category: string;
   price: string;
+  priceNumeric: number; // Pour le tri automatique par ordre croissant
   badge?: string;
   desc: string;
   fields: FormField[];
 }
 
 const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
-  contrat_bail: {
-    id: 'contrat_bail',
-    title: 'Contrat de bail d’habitation',
-    category: 'IMMOBILIER',
-    price: '1 000 FCFA',
-    desc: 'Bail d’habitation complet sécurisé avec clauses d’occupation.',
-    fields: [
-      { id: 'bailleur_nom', label: 'Nom du bailleur', type: 'text', placeholder: 'Ex: MBARGA', step: 1, required: true },
-      { id: 'bailleur_prenom', label: 'Prénom(s) du bailleur', type: 'text', placeholder: 'Ex: Paul', step: 1, required: true },
-      { id: 'bailleur_phone', label: 'Téléphone bailleur', type: 'text', placeholder: 'Ex: 6XX XX XX XX', step: 1, required: true },
-      { id: 'bailleur_adresse', label: 'Adresse bailleur', type: 'text', step: 1 },
-      { id: 'locataire_nom', label: 'Nom du locataire', type: 'text', placeholder: 'Ex: KOUAM', step: 2, required: true },
-      { id: 'locataire_prenom', label: 'Prénom(s) du locataire', type: 'text', step: 2, required: true },
-      { id: 'locataire_phone', label: 'Téléphone locataire', type: 'text', step: 2, required: true },
-      { id: 'logement_type', label: 'Type de logement', type: 'select', options: ['Studio', 'Appartement', 'Chambre', 'Maison villa'], step: 3, required: true },
-      { id: 'logement_ville', label: 'Ville & Quartier', type: 'text', placeholder: 'Ex: Yaoundé, Bastos', step: 3, required: true },
-      { id: 'loyer_montant', label: 'Loyer mensuel (FCFA)', type: 'number', placeholder: 'Ex: 75000', step: 3, required: true },
-      { id: 'caution_montant', label: 'Montant de la caution (FCFA)', type: 'number', step: 3 },
-      { id: 'date_debut', label: 'Date de début du bail', type: 'text', placeholder: 'JJ/MM/AAAA', step: 3, required: true }
-    ]
-  },
   quittance_loyer: {
     id: 'quittance_loyer',
     title: 'Quittance de loyer',
     category: 'IMMOBILIER',
     price: '500 FCFA',
+    priceNumeric: 500,
     desc: 'Attestation officielle de paiement intégral du loyer mensuel.',
     fields: [
       { id: 'bailleur_nom', label: 'Nom complet du bailleur', type: 'text', step: 1, required: true },
@@ -69,6 +50,7 @@ const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
     title: 'Reçu de paiement de loyer',
     category: 'IMMOBILIER',
     price: '500 FCFA',
+    priceNumeric: 500,
     desc: 'Preuve de paiement partiel ou d’acompte sur le loyer.',
     fields: [
       { id: 'receveur_nom', label: 'Nom du bénéficiaire (Bailleur)', type: 'text', step: 1, required: true },
@@ -84,6 +66,7 @@ const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
     title: 'Attestations locatives',
     category: 'IMMOBILIER',
     price: '500 FCFA',
+    priceNumeric: 500,
     desc: 'Attestations d’hébergement, de location ou de paiement.',
     fields: [
       { id: 'attestation_type', label: 'Type d’attestation', type: 'select', options: ['Attestation d’hébergement', 'Attestation de location', 'Attestation de paiement de loyer'], step: 1, required: true },
@@ -93,11 +76,66 @@ const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
       { id: 'date_debut', label: 'Réside / Hébergé depuis le', type: 'text', placeholder: 'JJ/MM/AAAA', step: 2, required: true }
     ]
   },
+  recu_vente: {
+    id: 'recu_vente',
+    title: 'Reçu de vente',
+    category: 'BUSINESS',
+    price: '500 FCFA',
+    priceNumeric: 500,
+    desc: 'Justificatif de vente directe de produits ou services.',
+    fields: [
+      { id: 'vendeur_nom', label: 'Nom du vendeur / Boutique', type: 'text', step: 1, required: true },
+      { id: 'acheteur_nom', label: 'Nom de l’acheteur', type: 'text', step: 1, required: true },
+      { id: 'articles_liste', label: 'Désignation des articles achetés', type: 'textarea', step: 2, required: true },
+      { id: 'montant_recu', label: 'Montant encaissé (FCFA)', type: 'number', step: 3, required: true }
+    ]
+  },
+  lettre: {
+    id: 'lettre',
+    title: 'Lettre de motivation',
+    category: 'CARRIÈRE',
+    price: '500 FCFA',
+    priceNumeric: 500,
+    badge: 'POPULAIRE',
+    desc: 'Rédigée sur mesure et au format professionnel.',
+    fields: [
+      { id: 'name', label: 'Nom & Prénom', type: 'text', step: 1, required: true },
+      { id: 'phone', label: 'Téléphone', type: 'text', step: 1, required: true },
+      { id: 'address', label: 'Ville / Adresse', type: 'text', step: 1 },
+      { id: 'jobTitle', label: 'Poste recherché', type: 'text', step: 2, required: true },
+      { id: 'recipient', label: 'Entreprise / Destinataire', type: 'text', step: 2, required: true },
+      { id: 'experience', label: 'Vos points forts & Parcours', type: 'textarea', step: 3, required: true },
+      { id: 'motivation', label: 'Pourquoi ce poste ?', type: 'textarea', step: 3, required: true }
+    ]
+  },
+  contrat_bail: {
+    id: 'contrat_bail',
+    title: 'Contrat de bail d’habitation',
+    category: 'IMMOBILIER',
+    price: '1 000 FCFA',
+    priceNumeric: 1000,
+    desc: 'Bail d’habitation complet sécurisé avec clauses d’occupation.',
+    fields: [
+      { id: 'bailleur_nom', label: 'Nom du bailleur', type: 'text', placeholder: 'Ex: MBARGA', step: 1, required: true },
+      { id: 'bailleur_prenom', label: 'Prénom(s) du bailleur', type: 'text', placeholder: 'Ex: Paul', step: 1, required: true },
+      { id: 'bailleur_phone', label: 'Téléphone bailleur', type: 'text', placeholder: 'Ex: 6XX XX XX XX', step: 1, required: true },
+      { id: 'bailleur_adresse', label: 'Adresse bailleur', type: 'text', step: 1 },
+      { id: 'locataire_nom', label: 'Nom du locataire', type: 'text', placeholder: 'Ex: KOUAM', step: 2, required: true },
+      { id: 'locataire_prenom', label: 'Prénom(s) du locataire', type: 'text', step: 2, required: true },
+      { id: 'locataire_phone', label: 'Téléphone locataire', type: 'text', step: 2, required: true },
+      { id: 'logement_type', label: 'Type de logement', type: 'select', options: ['Studio', 'Appartement', 'Chambre', 'Maison villa'], step: 3, required: true },
+      { id: 'logement_ville', label: 'Ville & Quartier', type: 'text', placeholder: 'Ex: Yaoundé, Bastos', step: 3, required: true },
+      { id: 'loyer_montant', label: 'Loyer mensuel (FCFA)', type: 'number', placeholder: 'Ex: 75000', step: 3, required: true },
+      { id: 'caution_montant', label: 'Montant de la caution (FCFA)', type: 'number', step: 3 },
+      { id: 'date_debut', label: 'Date de début du bail', type: 'text', placeholder: 'JJ/MM/AAAA', step: 3, required: true }
+    ]
+  },
   facture_simple: {
     id: 'facture_simple',
     title: 'Facture simple',
     category: 'BUSINESS',
     price: '1 000 FCFA',
+    priceNumeric: 1000,
     desc: 'Facture commerciale claire avec calculs des totaux.',
     fields: [
       { id: 'vendeur_nom', label: 'Nom commercial / Entreprise', type: 'text', step: 1, required: true },
@@ -111,6 +149,7 @@ const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
     title: 'Facture proforma',
     category: 'BUSINESS',
     price: '1 000 FCFA',
+    priceNumeric: 1000,
     desc: 'Devis et offre commerciale officielle avant prestation.',
     fields: [
       { id: 'vendeur_nom', label: 'Nom de votre entreprise', type: 'text', step: 1, required: true },
@@ -119,24 +158,12 @@ const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
       { id: 'objets_factures', label: 'Services ou produits proposés', type: 'textarea', placeholder: 'Ex: 1x Maintenance informatique (50000)', step: 3, required: true }
     ]
   },
-  recu_vente: {
-    id: 'recu_vente',
-    title: 'Reçu de vente',
-    category: 'BUSINESS',
-    price: '500 FCFA',
-    desc: 'Justificatif de vente directe de produits ou services.',
-    fields: [
-      { id: 'vendeur_nom', label: 'Nom du vendeur / Boutique', type: 'text', step: 1, required: true },
-      { id: 'acheteur_nom', label: 'Nom de l’acheteur', type: 'text', step: 1, required: true },
-      { id: 'articles_liste', label: 'Désignation des articles achetés', type: 'textarea', step: 2, required: true },
-      { id: 'montant_recu', label: 'Montant encaissé (FCFA)', type: 'number', step: 3, required: true }
-    ]
-  },
   bon_commande: {
     id: 'bon_commande',
     title: 'Bon de commande',
     category: 'BUSINESS',
     price: '1 000 FCFA',
+    priceNumeric: 1000,
     desc: 'Ordre d’achat officiel adressé à un fournisseur.',
     fields: [
       { id: 'acheteur_nom', label: 'Nom de votre entreprise', type: 'text', step: 1, required: true },
@@ -150,6 +177,7 @@ const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
     title: 'CV professionnel',
     category: 'CARRIÈRE',
     price: '1 000 FCFA',
+    priceNumeric: 1000,
     badge: 'POPULAIRE',
     desc: 'Format moderne optimisé pour le marché de l’emploi.',
     fields: [
@@ -160,28 +188,12 @@ const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
       { id: 'education', label: 'Formations & Diplômes', type: 'textarea', step: 3 }
     ]
   },
-  lettre: {
-    id: 'lettre',
-    title: 'Lettre de motivation',
-    category: 'CARRIÈRE',
-    price: '500 FCFA',
-    badge: 'POPULAIRE',
-    desc: 'Rédigée sur mesure et au format professionnel.',
-    fields: [
-      { id: 'name', label: 'Nom & Prénom', type: 'text', step: 1, required: true },
-      { id: 'phone', label: 'Téléphone', type: 'text', step: 1, required: true },
-      { id: 'address', label: 'Ville / Adresse', type: 'text', step: 1 },
-      { id: 'jobTitle', label: 'Poste recherché', type: 'text', step: 2, required: true },
-      { id: 'recipient', label: 'Entreprise / Destinataire', type: 'text', step: 2, required: true },
-      { id: 'experience', label: 'Vos points forts & Parcours', type: 'textarea', step: 3, required: true },
-      { id: 'motivation', label: 'Pourquoi ce poste ?', type: 'textarea', step: 3, required: true }
-    ]
-  },
   pack_emploi: {
     id: 'pack_emploi',
     title: 'Pack Emploi (CV + Lettre)',
     category: 'PACKS',
     price: '1 500 FCFA',
+    priceNumeric: 1500,
     badge: 'MEILLEURE OFFRE',
     desc: 'Formulaire unique pour obtenir votre CV et votre Lettre.',
     fields: [
@@ -197,6 +209,7 @@ const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
     title: 'Pack Entrepreneur (5 documents)',
     category: 'PACKS',
     price: '4 000 FCFA',
+    priceNumeric: 4000,
     badge: 'PRO',
     desc: '5 documents administratifs ou commerciaux pour votre entreprise.',
     fields: [
@@ -220,6 +233,9 @@ export default function Home() {
 
   const documentRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
+
+  // Tri automatique des documents par prix croissant (du moins coûteux au plus coûteux)
+  const sortedDocuments = Object.values(DOCUMENTS_CONFIG).sort((a, b) => a.priceNumeric - b.priceNumeric);
 
   // Masquer l'écran de bienvenue après 2.5 secondes
   useEffect(() => {
@@ -482,12 +498,22 @@ export default function Home() {
             fontWeight: '900',
             letterSpacing: '3px',
             color: '#4CC9F0',
-            marginBottom: '0.5rem',
+            marginBottom: '0.2rem',
             textTransform: 'uppercase',
             textShadow: '0 0 20px rgba(76, 201, 240, 0.4)'
           }}>
             DOCEXPRESS
           </div>
+          <p style={{
+            fontSize: '0.75rem',
+            letterSpacing: '2px',
+            color: '#F72585',
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            marginBottom: '1rem'
+          }}>
+            PAR DESIRE ATANGANA ATANGANA
+          </p>
           <p style={{
             fontSize: '1.2rem',
             color: '#8D99AE',
@@ -515,14 +541,16 @@ export default function Home() {
         </div>
       )}
 
-      {/* EN-TÊTE FIXE AVEC BOUTON HAMBURGER / CROIX */}
+      {/* EN-TÊTE FIXE AVEC MARQUE DE L'AUTEUR ET BOUTON HAMBURGER */}
       <header style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1C2541', position: 'sticky', top: 0, backgroundColor: '#0B132B', zIndex: 100 }}>
         <div>
           <span style={{ fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '1px', color: '#4CC9F0', cursor: 'pointer' }} onClick={() => { setStep('home'); setIsMenuOpen(false); }}>DOCEXPRESS</span>
-          <p style={{ fontSize: '0.75rem', color: '#8D99AE', margin: 0 }}>Vos documents. Simplement.</p>
+          <p style={{ fontSize: '0.65rem', color: '#F72585', fontWeight: 'bold', margin: '0.1rem 0 0 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            par DESIRE ATANGANA ATANGANA
+          </p>
         </div>
 
-        {/* BOUTON MENU ANIMÉ (3 BARRES -> CROIX) */}
+        {/* BOUTON MENU ANIMÉ */}
         <button 
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label="Menu"
@@ -588,9 +616,9 @@ export default function Home() {
           </button>
 
           <div>
-            <h3 style={{ fontSize: '0.9rem', color: '#8D99AE', textTransform: 'uppercase', marginBottom: '0.8rem' }}>Tous les documents</h3>
+            <h3 style={{ fontSize: '0.9rem', color: '#8D99AE', textTransform: 'uppercase', marginBottom: '0.8rem' }}>Tous les documents (par ordre de valeur)</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {Object.values(DOCUMENTS_CONFIG).map((doc) => (
+              {sortedDocuments.map((doc) => (
                 <div 
                   key={doc.id}
                   onClick={() => handleSelectDoc(doc)}
@@ -621,6 +649,20 @@ export default function Home() {
         {step === 'home' && (
           <div>
             <section style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+              <div style={{
+                display: 'inline-block',
+                backgroundColor: 'rgba(247, 37, 133, 0.1)',
+                border: '1px solid #F72585',
+                color: '#F72585',
+                padding: '0.3rem 0.8rem',
+                borderRadius: '20px',
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                marginBottom: '1rem',
+                letterSpacing: '1px'
+              }}>
+                UNE CRÉATION DE DESIRE ATANGANA ATANGANA
+              </div>
               <h1 style={{ fontSize: '1.8rem', fontWeight: '800', lineHeight: 1.2, marginBottom: '0.8rem' }}>
                 Vos documents professionnels rédigés sur mesure.
               </h1>
@@ -630,9 +672,13 @@ export default function Home() {
             </section>
 
             <section>
-              <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>🔥 Choisissez votre document</h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.2rem', margin: 0 }}>🔥 Choisissez votre document</h2>
+                <span style={{ fontSize: '0.75rem', color: '#8D99AE', fontStyle: 'italic' }}>Du - au + coûteux</span>
+              </div>
+              
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {Object.values(DOCUMENTS_CONFIG).map((doc) => (
+                {sortedDocuments.map((doc) => (
                   <div 
                     key={doc.id}
                     onClick={() => handleSelectDoc(doc)}
