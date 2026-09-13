@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-// --- CONFIGURATION DYNAMIQUE DES PRODUITS ---
+// --- INTERFACES & CONFIGURATION ---
 interface FormField {
   id: string;
   label: string;
@@ -20,10 +20,21 @@ interface DocumentConfig {
   title: string;
   category: string;
   price: string;
-  priceNumeric: number; // Pour le tri automatique par ordre croissant
+  priceNumeric: number;
   badge?: string;
   desc: string;
   fields: FormField[];
+}
+
+interface Order {
+  id: string;
+  docTitle: string;
+  price: string;
+  clientPhone: string;
+  status: 'PENDING' | 'APPROVED';
+  createdAt: string;
+  formData: Record<string, string>;
+  generatedBody: string;
 }
 
 const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
@@ -222,7 +233,7 @@ const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
 
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true);
-  const [step, setStep] = useState<'home' | 'form' | 'review' | 'preview' | 'payment' | 'success'>('home');
+  const [step, setStep] = useState<'home' | 'form' | 'review' | 'preview' | 'payment' | 'pending' | 'success' | 'admin_login' | 'admin_dashboard'>('home');
   const [selectedDoc, setSelectedDoc] = useState<DocumentConfig | null>(null);
   const [formStep, setFormStep] = useState(1);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -230,20 +241,60 @@ export default function Home() {
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [generatedBody, setGeneratedBody] = useState<string>('');
-
-  const documentRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
 
-  // Tri automatique des documents par prix croissant (du moins coûteux au plus coûteux)
+  // --- ÉTAT DU PAIEMENT & COMMANDES ---
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [adminPinInput, setAdminPinInput] = useState('');
+  const [adminPinError, setAdminPinError] = useState(false);
+
+  const documentRef = useRef<HTMLDivElement>(null);
   const sortedDocuments = Object.values(DOCUMENTS_CONFIG).sort((a, b) => a.priceNumeric - b.priceNumeric);
 
-  // Masquer l'écran de bienvenue après 2.5 secondes
+  // Masquer l'écran de bienvenue après 2.5s
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
     }, 2500);
     return () => clearTimeout(timer);
   }, []);
+
+  // Synchronisation des commandes depuis le localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('docexpress_orders');
+    if (saved) {
+      try {
+        setOrders(JSON.parse(saved));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
+
+  // Polling pour l'écran client en attente de validation
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (step === 'pending' && currentOrder) {
+      interval = setInterval(() => {
+        const saved = localStorage.getItem('docexpress_orders');
+        if (saved) {
+          const list: Order[] = JSON.parse(saved);
+          const updated = list.find(o => o.id === currentOrder.id);
+          if (updated && updated.status === 'APPROVED') {
+            setCurrentOrder(updated);
+            setStep('success');
+          }
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [step, currentOrder]);
+
+  const saveOrdersToStorage = (newOrders: Order[]) => {
+    setOrders(newOrders);
+    localStorage.setItem('docexpress_orders', JSON.stringify(newOrders));
+  };
 
   const handleSelectDoc = (doc: DocumentConfig) => {
     setSelectedDoc(doc);
@@ -271,7 +322,11 @@ export default function Home() {
       setStep('review');
     } else if (step === 'payment') {
       setStep('preview');
+    } else if (step === 'pending') {
+      setStep('payment');
     } else if (step === 'success') {
+      setStep('home');
+    } else if (step === 'admin_login' || step === 'admin_dashboard') {
       setStep('home');
     }
   };
@@ -441,6 +496,51 @@ export default function Home() {
     setIsGeneratingContent(false);
   };
 
+  // --- INITIALISATION DU PAIEMENT WHATSAPP & ENREGISTREMENT DE LA COMMANDE ---
+  const handleInitiatePayment = () => {
+    if (!selectedDoc) return;
+    const refCode = `DOC-${Math.floor(100000 + Math.random() * 900000)}`;
+    const phone = formData.phone || formData.bailleur_phone || formData.vendeur_phone || formData.payeur_phone || 'Non renseigné';
+
+    const newOrder: Order = {
+      id: refCode,
+      docTitle: selectedDoc.title,
+      price: selectedDoc.price,
+      clientPhone: phone,
+      status: 'PENDING',
+      createdAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      formData,
+      generatedBody
+    };
+
+    const updatedOrders = [newOrder, ...orders];
+    saveOrdersToStorage(updatedOrders);
+    setCurrentOrder(newOrder);
+
+    // Message pré-rempli pour WhatsApp
+    const message = encodeURIComponent(
+      `Bonjour DocExpress,\nJe viens d'effectuer le paiement de ${selectedDoc.price} pour le document "${selectedDoc.title}".\n\nRéférence : ${refCode}`
+    );
+    window.open(`https://wa.me/237655069396?text=${message}`, '_blank');
+
+    setStep('pending');
+  };
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPinInput === '1234') {
+      setAdminPinError(false);
+      setStep('admin_dashboard');
+    } else {
+      setAdminPinError(true);
+    }
+  };
+
+  const handleApproveOrder = (orderId: string) => {
+    const updated = orders.map(o => o.id === orderId ? { ...o, status: 'APPROVED' as const } : o);
+    saveOrdersToStorage(updated);
+  };
+
   const generatePDF = async () => {
     if (!documentRef.current) return;
     setIsGeneratingPDF(true);
@@ -454,7 +554,7 @@ export default function Home() {
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-      pdf.save(`${selectedDoc?.title || 'Document'}_DocExpress.pdf`);
+      pdf.save(`${selectedDoc?.title || currentOrder?.docTitle || 'Document'}_DocExpress.pdf`);
     } catch (error) {
       console.error('Erreur lors du téléchargement :', error);
     } finally {
@@ -541,7 +641,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* EN-TÊTE FIXE AVEC MARQUE DE L'AUTEUR ET BOUTON HAMBURGER */}
+      {/* EN-TÊTE FIXE */}
       <header style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1C2541', position: 'sticky', top: 0, backgroundColor: '#0B132B', zIndex: 100 }}>
         <div>
           <span style={{ fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '1px', color: '#4CC9F0', cursor: 'pointer' }} onClick={() => { setStep('home'); setIsMenuOpen(false); }}>DOCEXPRESS</span>
@@ -550,7 +650,6 @@ export default function Home() {
           </p>
         </div>
 
-        {/* BOUTON MENU ANIMÉ */}
         <button 
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label="Menu"
@@ -593,7 +692,7 @@ export default function Home() {
         </button>
       </header>
 
-      {/* TIROIR DÉROULANT (MENU OVERLAY) */}
+      {/* MENU DÉROULANT */}
       {isMenuOpen && (
         <div style={{
           position: 'fixed',
@@ -615,6 +714,12 @@ export default function Home() {
             🏠 Page d'accueil
           </button>
 
+          <button 
+            onClick={() => { setStep('admin_login'); setIsMenuOpen(false); }}
+            style={{ backgroundColor: '#1C2541', color: '#F72585', border: '1px solid #F72585', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', textAlign: 'left', cursor: 'pointer' }}>
+            🔒 Espace Administration
+          </button>
+
           <div>
             <h3 style={{ fontSize: '0.9rem', color: '#8D99AE', textTransform: 'uppercase', marginBottom: '0.8rem' }}>Tous les documents (par ordre de valeur)</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -634,7 +739,7 @@ export default function Home() {
 
       <main style={{ maxWidth: '600px', margin: '0 auto', padding: '1.5rem' }}>
 
-        {/* BARRE DE RETOUR À LA PAGE PRÉCÉDENTE */}
+        {/* BARRE DE RETOUR */}
         {step !== 'home' && (
           <div style={{ marginBottom: '1rem' }}>
             <button 
@@ -801,8 +906,8 @@ export default function Home() {
             <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', textAlign: 'center' }}>Aperçu de votre document</h2>
             
             <div style={{ backgroundColor: '#FFF', color: '#111', padding: '1.5rem', borderRadius: '8px', position: 'relative', overflow: 'hidden', minHeight: '350px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontFamily: "'Times New Roman', Times, serif" }}>
-              <div style={{ position: 'absolute', top: '40%', left: '10%', transform: 'rotate(-30deg)', fontSize: '3.5rem', fontWeight: '900', color: 'rgba(230, 57, 70, 0.15)', pointerEvents: 'none', userSelect: 'none' }}>
-                SPÉCIMEN
+              <div style={{ position: 'absolute', top: '35%', left: '5%', right: '5%', transform: 'rotate(-25deg)', fontSize: '2.2rem', fontWeight: '900', color: 'rgba(230, 57, 70, 0.18)', pointerEvents: 'none', userSelect: 'none', textAlign: 'center', border: '4px dashed rgba(230, 57, 70, 0.25)', padding: '10px' }}>
+                SPÉCIMEN - DOCEXPRESS
               </div>
 
               <div style={{ fontSize: '0.85rem', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: generatedBody }} />
@@ -820,10 +925,14 @@ export default function Home() {
           </div>
         )}
 
-        {/* 5. PAIEMENT */}
+        {/* 5. PAIEMENT MANUEL */}
         {step === 'payment' && selectedDoc && (
           <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Paiement</h2>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Paiement Mobile</h2>
+            <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1rem' }}>
+              Effectuez le dépôt du montant exact sur l'un des numéros ci-dessous, puis cliquez sur le bouton pour valider sur WhatsApp.
+            </p>
+            
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid #3A506B', marginBottom: '1.5rem' }}>
               <span>{selectedDoc.title}</span>
               <span style={{ fontWeight: 'bold', color: '#4CC9F0' }}>{selectedDoc.price}</span>
@@ -841,22 +950,49 @@ export default function Home() {
               </div>
             </div>
 
-            <button onClick={() => setStep('success')} style={{ width: '100%', backgroundColor: '#25D366', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>
-              🟢 J'AI EFFECTUÉ LE PAIEMENT
+            <button onClick={handleInitiatePayment} style={{ width: '100%', backgroundColor: '#25D366', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
+              💬 CONFIRMER SUR WHATSAPP
             </button>
           </div>
         )}
 
-        {/* 6. TÉLÉCHARGEMENT FINAL */}
-        {step === 'success' && selectedDoc && (
+        {/* 6. ÉCRAN D'ATTENTE CLIENT */}
+        {step === 'pending' && currentOrder && (
+          <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
+            <div style={{ width: '50px', height: '50px', border: '4px solid #1C2541', borderTop: '4px solid #4CC9F0', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1.5rem auto' }} />
+            <style jsx>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+            
+            <h2 style={{ fontSize: '1.3rem', color: '#4CC9F0', marginBottom: '0.5rem' }}>Vérification du paiement en cours...</h2>
+            <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1.5rem' }}>
+              Votre demande a bien été transmise. Dès confirmation de votre dépôt par notre équipe, le bouton de téléchargement s'activera automatiquement sur cette page.
+            </p>
+
+            <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', textAlign: 'left', fontSize: '0.85rem' }}>
+              <p style={{ margin: '0 0 0.5rem 0', color: '#8D99AE' }}>Référence de commande : <strong style={{ color: '#FFF' }}>{currentOrder.id}</strong></p>
+              <p style={{ margin: '0 0 0.5rem 0', color: '#8D99AE' }}>Document : <strong style={{ color: '#FFF' }}>{currentOrder.docTitle}</strong></p>
+              <p style={{ margin: 0, color: '#8D99AE' }}>Montant : <strong style={{ color: '#4CC9F0' }}>{currentOrder.price}</strong></p>
+            </div>
+          </div>
+        )}
+
+        {/* 7. TÉLÉCHARGEMENT FINAL */}
+        {step === 'success' && (selectedDoc || currentOrder) && (
           <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
             <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
-            <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0', marginBottom: '1rem' }}>Votre document est prêt !</h2>
+            <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0', marginBottom: '0.5rem' }}>Paiement Confirmé !</h2>
+            <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1.5rem' }}>
+              Votre document a été validé. Vous pouvez le télécharger au format PDF officiel.
+            </p>
 
             {/* ELEMENT MASQUÉ POUR IMPRESSION PDF */}
             <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
               <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFF', color: '#111', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
-                <div style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: generatedBody }} />
+                <div style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: currentOrder?.generatedBody || generatedBody }} />
               </div>
             </div>
 
@@ -872,6 +1008,72 @@ export default function Home() {
               style={{ width: '100%', backgroundColor: '#0B132B', color: '#8D99AE', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer' }}>
               🏠 Créer un autre document
             </button>
+          </div>
+        )}
+
+        {/* 8. CONNEXION ADMIN */}
+        {step === 'admin_login' && (
+          <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+            <h2 style={{ fontSize: '1.2rem', color: '#F72585', marginBottom: '1rem' }}>🔒 Espace Administration</h2>
+            <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#8D99AE' }}>Code PIN Accès</label>
+                <input 
+                  type="password" 
+                  value={adminPinInput} 
+                  onChange={(e) => setAdminPinInput(e.target.value)} 
+                  placeholder="Entrez le code PIN (ex: 1234)"
+                  style={inputStyle}
+                />
+              </div>
+              {adminPinError && <p style={{ color: '#E63946', fontSize: '0.8rem', margin: 0 }}>Code PIN incorrect.</p>}
+              <button type="submit" style={{ backgroundColor: '#F72585', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                Se connecter
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* 9. DASHBOARD ADMIN */}
+        {step === 'admin_dashboard' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ fontSize: '1.2rem', color: '#F72585', margin: 0 }}>📊 Suivi des Paiements</h2>
+              <button onClick={() => setStep('home')} style={{ backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                Quitter
+              </button>
+            </div>
+
+            {orders.length === 0 ? (
+              <p style={{ color: '#8D99AE', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande enregistrée pour le moment.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {orders.map((ord) => (
+                  <div key={ord.id} style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '10px', border: '1px solid #3A506B', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 'bold', color: '#4CC9F0', fontSize: '0.95rem' }}>{ord.id}</span>
+                      <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: ord.status === 'APPROVED' ? 'rgba(37, 211, 102, 0.2)' : 'rgba(247, 37, 133, 0.2)', color: ord.status === 'APPROVED' ? '#25D366' : '#F72585', fontWeight: 'bold' }}>
+                        {ord.status === 'APPROVED' ? 'VALIDE' : 'EN ATTENTE'}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.85rem' }}>
+                      <p style={{ margin: '0 0 0.2rem 0' }}>Document : <strong>{ord.docTitle}</strong></p>
+                      <p style={{ margin: '0 0 0.2rem 0' }}>Montant : <strong>{ord.price}</strong></p>
+                      <p style={{ margin: 0 }}>Client : <strong>{ord.clientPhone}</strong> ({ord.createdAt})</p>
+                    </div>
+
+                    {ord.status === 'PENDING' && (
+                      <button 
+                        onClick={() => handleApproveOrder(ord.id)}
+                        style={{ marginTop: '0.5rem', backgroundColor: '#25D366', color: '#FFF', border: 'none', padding: '0.6rem', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>
+                        ✅ Valider le paiement
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
