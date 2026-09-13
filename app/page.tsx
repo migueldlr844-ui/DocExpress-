@@ -3,12 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { createClient } from '@supabase/supabase-js';
-
-// --- INITIALISATION SUPABASE ---
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // --- INTERFACES & CONFIGURATION ---
 interface FormField {
@@ -34,13 +28,13 @@ interface DocumentConfig {
 
 interface Order {
   id: string;
-  doc_title: string;
+  docTitle: string;
   price: string;
-  client_phone: string;
+  clientPhone: string;
   status: 'PENDING' | 'APPROVED';
-  created_at?: string;
-  form_data: Record<string, string>;
-  generated_body: string;
+  createdAt: string;
+  formData: Record<string, string>;
+  generatedBody: string;
 }
 
 const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
@@ -158,7 +152,7 @@ const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
       { id: 'vendeur_nom', label: 'Nom commercial / Entreprise', type: 'text', step: 1, required: true },
       { id: 'vendeur_phone', label: 'Téléphone / WhatsApp', type: 'text', step: 1, required: true },
       { id: 'client_nom', label: 'Nom du client / Entreprise', type: 'text', step: 2, required: true },
-      { id: 'objets_factures', label: 'Détail des prestations ou articles', type: 'textarea', placeholder: 'Ex: 2x Conception Logo (15000)', step: 3, required: true }
+      { id: 'objets_factures', label: 'Détail des prestations ou articles', type: 'textarea', placeholder: 'Ex: 2x Conception Logo (15000), 1x Impression Bâche (20000)', step: 3, required: true }
     ]
   },
   facture_proforma: {
@@ -172,7 +166,7 @@ const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
       { id: 'vendeur_nom', label: 'Nom de votre entreprise', type: 'text', step: 1, required: true },
       { id: 'client_nom', label: 'Client destinataire', type: 'text', step: 1, required: true },
       { id: 'validite', label: 'Validité de l’offre', type: 'text', placeholder: 'Ex: 15 jours', step: 2, required: true },
-      { id: 'objets_factures', label: 'Services ou produits proposés', type: 'textarea', placeholder: 'Ex: Maintenance informatique (50000)', step: 3, required: true }
+      { id: 'objets_factures', label: 'Services ou produits proposés', type: 'textarea', placeholder: 'Ex: 1x Maintenance informatique (50000)', step: 3, required: true }
     ]
   },
   bon_commande: {
@@ -262,50 +256,38 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, []);
 
-  // ÉCOUTE TEMPS RÉEL CLIENT & CHARGEMENT ADMIN
   useEffect(() => {
-    if (step === 'admin_dashboard') {
-      fetchOrders();
-      const channel = supabase
-        .channel('admin_orders')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-          fetchOrders();
-        })
-        .subscribe();
-
-      return () => { supabase.removeChannel(channel); };
+    const saved = localStorage.getItem('docexpress_orders');
+    if (saved) {
+      try {
+        setOrders(JSON.parse(saved));
+      } catch (e) {
+        console.error(e);
+      }
     }
+  }, []);
 
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
     if (step === 'pending' && currentOrder) {
-      const channel = supabase
-        .channel(`order_${currentOrder.id}`)
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `id=eq.${currentOrder.id}`
-        }, (payload) => {
-          const updated = payload.new as Order;
-          if (updated.status === 'APPROVED') {
+      interval = setInterval(() => {
+        const saved = localStorage.getItem('docexpress_orders');
+        if (saved) {
+          const list: Order[] = JSON.parse(saved);
+          const updated = list.find(o => o.id === currentOrder.id);
+          if (updated && updated.status === 'APPROVED') {
             setCurrentOrder(updated);
             setStep('success');
           }
-        })
-        .subscribe();
-
-      return () => { supabase.removeChannel(channel); };
+        }
+      }, 3000);
     }
+    return () => clearInterval(interval);
   }, [step, currentOrder]);
 
-  const fetchOrders = async () => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setOrders(data as Order[]);
-    }
+  const saveOrdersToStorage = (newOrders: Order[]) => {
+    setOrders(newOrders);
+    localStorage.setItem('docexpress_orders', JSON.stringify(newOrders));
   };
 
   const handleSelectDoc = (doc: DocumentConfig) => {
@@ -498,29 +480,24 @@ export default function Home() {
     setIsGeneratingContent(false);
   };
 
-  const handleInitiatePayment = async () => {
+  const handleInitiatePayment = () => {
     if (!selectedDoc) return;
     const refCode = `DOC-${Math.floor(100000 + Math.random() * 900000)}`;
     const phone = formData.phone || formData.bailleur_phone || formData.vendeur_phone || formData.payeur_phone || 'Non renseigné';
 
     const newOrder: Order = {
       id: refCode,
-      doc_title: selectedDoc.title,
+      docTitle: selectedDoc.title,
       price: selectedDoc.price,
-      client_phone: phone,
+      clientPhone: phone,
       status: 'PENDING',
-      form_data: formData,
-      generated_body: generatedBody
+      createdAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      formData,
+      generatedBody
     };
 
-    const { error } = await supabase.from('orders').insert([newOrder]);
-
-    if (error) {
-      alert("Erreur lors de l'enregistrement de la commande. Veuillez réespayer.");
-      console.error(error);
-      return;
-    }
-
+    const updatedOrders = [newOrder, ...orders];
+    saveOrdersToStorage(updatedOrders);
     setCurrentOrder(newOrder);
 
     const message = encodeURIComponent(
@@ -541,15 +518,9 @@ export default function Home() {
     }
   };
 
-  const handleApproveOrder = async (orderId: string) => {
-    const { error } = await supabase
-      .from('orders')
-      .update({ status: 'APPROVED' })
-      .eq('id', orderId);
-
-    if (!error) {
-      fetchOrders();
-    }
+  const handleApproveOrder = (orderId: string) => {
+    const updated = orders.map(o => o.id === orderId ? { ...o, status: 'APPROVED' as const } : o);
+    saveOrdersToStorage(updated);
   };
 
   const generatePDF = async () => {
@@ -565,7 +536,7 @@ export default function Home() {
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
       pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-      pdf.save(`${selectedDoc?.title || currentOrder?.doc_title || 'Document'}_DocExpress.pdf`);
+      pdf.save(`${selectedDoc?.title || currentOrder?.docTitle || 'Document'}_DocExpress.pdf`);
     } catch (error) {
       console.error('Erreur lors du téléchargement :', error);
     } finally {
@@ -811,7 +782,7 @@ export default function Home() {
           <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
             <h2 style={{ fontSize: '1.3rem', color: '#4CC9F0', marginBottom: '0.5rem' }}>Vérification du paiement en cours...</h2>
             <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1.5rem' }}>
-              Dès confirmation de votre dépôt, le bouton de téléchargement s'activera automatiquement ici.
+              Dès confirmation de votre dépôt, le bouton de téléchargement s'activera ici.
             </p>
           </div>
         )}
@@ -844,11 +815,11 @@ export default function Home() {
         {step === 'admin_dashboard' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ fontSize: '1.2rem', color: '#F72585', margin: 0 }}>📊 Suivi des Paiements (Supabase)</h2>
+              <h2 style={{ fontSize: '1.2rem', color: '#F72585', margin: 0 }}>📊 Suivi des Paiements</h2>
               <button onClick={() => setStep('home')} style={{ backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>Quitter</button>
             </div>
             {orders.length === 0 ? (
-              <p style={{ color: '#8D99AE', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande enregistrée.</p>
+              <p style={{ color: '#8D99AE', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {orders.map((ord) => (
@@ -857,9 +828,9 @@ export default function Home() {
                       <span style={{ fontWeight: 'bold', color: '#4CC9F0' }}>{ord.id}</span>
                       <span style={{ color: ord.status === 'APPROVED' ? '#25D366' : '#F72585', fontWeight: 'bold' }}>{ord.status}</span>
                     </div>
-                    <p style={{ fontSize: '0.85rem', margin: '0.5rem 0' }}>{ord.doc_title} - {ord.price} ({ord.client_phone})</p>
+                    <p style={{ fontSize: '0.85rem', margin: '0.5rem 0' }}>{ord.docTitle} - {ord.price} ({ord.clientPhone})</p>
                     {ord.status === 'PENDING' && (
-                      <button onClick={() => handleApproveOrder(ord.id)} style={{ backgroundColor: '#25D366', color: '#FFF', border: 'none', padding: '0.5rem', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', width: '100%' }}>✅ Valider le paiement</button>
+                      <button onClick={() => handleApproveOrder(ord.id)} style={{ backgroundColor: '#25D366', color: '#FFF', border: 'none', padding: '0.5rem', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>✅ Valider le paiement</button>
                     )}
                   </div>
                 ))}
@@ -871,7 +842,7 @@ export default function Home() {
         {/* CONTAINER DE CAPTURE PDF CACHÉ VISUELLEMENT MAIS PRÉSENT DANS LE DOM */}
         <div style={{ position: 'fixed', top: 0, left: 0, width: '794px', zIndex: -9999, opacity: 0, pointerEvents: 'none' }}>
           <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFF', color: '#111', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
-            <div style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: currentOrder?.generated_body || generatedBody }} />
+            <div style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: currentOrder?.generatedBody || generatedBody }} />
           </div>
         </div>
 
