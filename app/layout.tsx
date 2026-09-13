@@ -1,4 +1,5 @@
-export const metadata = {
+export const metadata = {import './globals.css';
+
   title: 'DocExpress',
   description: 'Gestion et génération de documents',
 };
