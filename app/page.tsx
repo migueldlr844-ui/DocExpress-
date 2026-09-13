@@ -233,29 +233,184 @@ export default function Home() {
 
   const handleProcessDocument = async () => {
     setIsGeneratingContent(true);
-    try {
-      const res = await fetch('/api/generate-doc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          docId: selectedDoc?.id,
-          formData,
-        }),
-      });
+    let content = '';
+    const id = selectedDoc?.id;
 
-      const data = await res.json();
-      setGeneratedBody(data.content || '<p>Rédaction complétée avec succès.</p>');
-      setStep('preview');
-    } catch (err) {
-      console.error('Erreur de traitement:', err);
-      setGeneratedBody(`
-        <p>Document rédigé avec succès selon les informations fournies.</p>
-        <p><strong>Bénéficiaire :</strong> ${formData.name || formData.client_nom || formData.locataire_nom || 'Client'}</p>
-      `);
-      setStep('preview');
-    } finally {
-      setIsGeneratingContent(false);
+    // 1. CONTRAT DE BAIL
+    if (id === 'contrat_bail') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px;">CONTRAT DE BAIL À USAGE D'HABITATION</h2>
+        <p><strong>ENTRE LES SOUSSIGNÉS :</strong></p>
+        <p><strong>Le Bailleur :</strong> M./Mme ${formData.bailleur_nom || ''} ${formData.bailleur_prenom || ''}, Tél : ${formData.bailleur_phone || ''}, Domicilié à : ${formData.bailleur_adresse || 'N/A'}.</p>
+        <p><strong>ET</strong></p>
+        <p><strong>Le Locataire :</strong> M./Mme ${formData.locataire_nom || ''} ${formData.locataire_prenom || ''}, Tél : ${formData.locataire_phone || ''}.</p>
+        <hr style="margin: 15px 0;" />
+        <p><strong>1. OBJET :</strong> Le bailleur donne à bail d'habitation le bien situé à : <strong>${formData.logement_ville || ''}</strong> (Type : ${formData.logement_type || 'Logement'}).</p>
+        <p><strong>2. DURÉE :</strong> Prend effet le <strong>${formData.date_debut || ''}</strong> pour une durée d'un an renouvelable par tacite reconduction.</p>
+        <p><strong>3. CONDITIONS FINANCIÈRES :</strong> Loyer mensuel fixé à <strong>${formData.loyer_montant || 0} FCFA</strong>. Caution versée : <strong>${formData.caution_montant || 0} FCFA</strong>.</p>
+        <br/><br/>
+        <div style="display: flex; justify-content: space-between; margin-top: 40px;">
+          <div><strong>Le Bailleur</strong><br/><br/><i>(Signature)</i></div>
+          <div><strong>Le Locataire</strong><br/><br/><i>(Signature)</i></div>
+        </div>
+      `;
+    } 
+    // 2. QUITTANCE DE LOYER
+    else if (id === 'quittance_loyer') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase;">QUITTANCE DE LOYER</h2>
+        <p style="text-align: right;"><strong>Période :</strong> ${formData.periode || ''}</p>
+        <p>Je soussigné <strong>${formData.bailleur_nom || ''}</strong> (Tél : ${formData.bailleur_phone || ''}), propriétaire du logement situé à <strong>${formData.logement_adresse || ''}</strong>,</p>
+        <p>Reconnais avoir reçu de M./Mme <strong>${formData.locataire_nom || ''}</strong> la somme de <strong>${formData.loyer_montant || 0} FCFA</strong> au titre du paiement du loyer pour la période susmentionnée.</p>
+        <p><strong>Mode de paiement :</strong> ${formData.paiement_mode || 'Espèces'} le ${formData.paiement_date || ''}.</p>
+        <p style="margin-top: 20px;"><i>Sous réserve de tous mes droits. Document délivré pour servir et valoir ce que de droit.</i></p>
+        <br/><br/>
+        <div style="text-align: right; margin-top: 30px;">
+          <strong>Le Bailleur / Gestionnaire</strong><br/><br/><i>(Signature & Cachet)</i>
+        </div>
+      `;
     }
+    // 3. REÇU DE LOYER
+    else if (id === 'recu_loyer') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase;">REÇU DE PAIEMENT DE LOYER</h2>
+        <p>Reçu de M./Mme <strong>${formData.payeur_nom || ''}</strong></p>
+        <p>La somme de : <strong>${formData.montant || 0} FCFA</strong></p>
+        <p><strong>Motif :</strong> ${formData.motif || 'Acompte / Loyer'} pour le logement situé à ${formData.logement_adresse || ''}.</p>
+        <p><strong>Reste à payer :</strong> ${formData.reste_a_payer || 0} FCFA.</p>
+        <br/><br/>
+        <div style="display: flex; justify-content: space-between; margin-top: 30px;">
+          <div><strong>Le Payeur</strong></div>
+          <div><strong>Le Bénéficiaire (${formData.receveur_nom || ''})</strong><br/><br/><i>(Signature)</i></div>
+        </div>
+      `;
+    }
+    // 4. ATTESTATION LOCATIVE / HÉBERGEMENT
+    else if (id === 'attestation_location') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase;">${(formData.attestation_type || "ATTESTATION").toUpperCase()}</h2>
+        <br/>
+        <p>Je soussigné(e) <strong>${formData.declarant_nom || ''}</strong>, demeurant à <strong>${formData.declarant_adresse || ''}</strong>,</p>
+        <p>Atteste sur l'honneur que M./Mme <strong>${formData.beneficiaire_nom || ''}</strong> est hébergé(e) / réside à mon adresse susmentionnée depuis le <strong>${formData.date_debut || ''}</strong>.</p>
+        <p>En foi de quoi, la présente attestation est établie pour servir et valoir ce que de droit.</p>
+        <br/><br/>
+        <div style="text-align: right; margin-top: 40px;">
+          <strong>Fait pour valoir de droit,</strong><br/><br/>
+          <strong>Le Déclarant</strong><br/><i>(Signature)</i>
+        </div>
+      `;
+    }
+    // 5. FACTURE SIMPLE / PROFORMA / REÇU DE VENTE
+    else if (id === 'facture_simple' || id === 'facture_proforma' || id === 'recu_vente') {
+      const isProforma = id === 'facture_proforma';
+      const isRecu = id === 'recu_vente';
+      const title = isProforma ? 'FACTURE PROFORMA' : isRecu ? 'REÇU DE VENTE' : 'FACTURE';
+
+      content = `
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 10px;">
+          <div>
+            <h2 style="margin: 0; color: #111;">${formData.vendeur_nom || 'ENTREPRISE'}</h2>
+            <p style="margin: 5px 0;">Tél/WhatsApp : ${formData.vendeur_phone || ''}</p>
+          </div>
+          <div style="text-align: right;">
+            <h3 style="margin: 0; color: #4361EE;">${title}</h3>
+            ${isProforma ? `<p style="margin: 5px 0;">Validité : ${formData.validite || '15 jours'}</p>` : ''}
+          </div>
+        </div>
+        <br/>
+        <p><strong>Client :</strong> ${formData.client_nom || formData.acheteur_nom || ''}</p>
+        <br/>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+          <thead>
+            <tr style="background: #f2f2f2; text-align: left;">
+              <th style="padding: 8px; border: 1px solid #ddd;">Désignation / Prestation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 12px; border: 1px solid #ddd; white-space: pre-wrap;">${formData.objets_factures || formData.articles_liste || ''}</td>
+            </tr>
+          </tbody>
+        </table>
+        ${formData.montant_recu ? `<h3 style="text-align: right; margin-top: 15px;">Total encaissé : ${formData.montant_recu} FCFA</h3>` : ''}
+        <br/><br/>
+        <div style="text-align: right; margin-top: 30px;">
+          <strong>La Direction / Le Vendeur</strong><br/><br/><i>(Signature)</i>
+        </div>
+      `;
+    }
+    // 6. BON DE COMMANDE
+    else if (id === 'bon_commande') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase;">BON DE COMMANDE</h2>
+        <p><strong>Acheteur :</strong> ${formData.acheteur_nom || ''}</p>
+        <p><strong>Fournisseur :</strong> ${formData.fournisseur_nom || ''}</p>
+        <p><strong>Lieu de livraison :</strong> ${formData.livraison_adresse || ''}</p>
+        <hr/>
+        <h3>Détail des articles commandés :</h3>
+        <div style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; white-space: pre-wrap;">
+          ${formData.produits_commandes || ''}
+        </div>
+        <br/><br/>
+        <div style="display: flex; justify-content: space-between; margin-top: 30px;">
+          <div><strong>L'Acheteur</strong><br/><br/><i>(Signature)</i></div>
+          <div><strong>Confirmation Fournisseur</strong><br/><br/><i>(Signature)</i></div>
+        </div>
+      `;
+    }
+    // 7. CV PROFESSIONNEL
+    else if (id === 'cv') {
+      content = `
+        <div style="border-bottom: 3px solid #4361EE; padding-bottom: 10px; margin-bottom: 20px;">
+          <h1 style="margin: 0; color: #111; text-transform: uppercase;">${formData.name || ''}</h1>
+          <h3 style="margin: 5px 0; color: #4361EE;">${formData.jobTitle || ''}</h3>
+          <p style="margin: 0; color: #555;">Tél : ${formData.phone || ''}</p>
+        </div>
+        
+        <h3 style="background: #f0f0f0; padding: 5px 10px; border-left: 4px solid #4361EE;">EXPÉRIENCES PROFESSIONNELLES</h3>
+        <p style="white-space: pre-wrap; line-height: 1.6;">${formData.experience || ''}</p>
+
+        <h3 style="background: #f0f0f0; padding: 5px 10px; border-left: 4px solid #4361EE; margin-top: 20px;">FORMATIONS & DIPLÔMES</h3>
+        <p style="white-space: pre-wrap; line-height: 1.6;">${formData.education || 'Non renseigné'}</p>
+      `;
+    }
+    // 8. LETTRE DE MOTIVATION
+    else if (id === 'lettre') {
+      content = `
+        <p><strong>${formData.name || ''}</strong><br/>Tél : ${formData.phone || ''}<br/>${formData.address || ''}</p>
+        <p style="text-align: right;"><strong>À l'attention du Recruteur</strong><br/>${formData.recipient || 'L\'Entreprise'}</p>
+        <br/>
+        <p><strong>Objet : Candidature au poste de ${formData.jobTitle || ''}</strong></p>
+        <br/>
+        <p>Madame, Monsieur,</p>
+        <p>C'est avec un vif intérêt que je vous adresse ma candidature pour le poste de <strong>${formData.jobTitle || ''}</strong> au sein de votre structure.</p>
+        <p>${formData.motivation || ''}</p>
+        <p>Fort de mon parcours :</p>
+        <p style="white-space: pre-wrap;">${formData.experience || ''}</p>
+        <p>Je reste à votre entière disposition pour un entretien d'embauche.</p>
+        <br/>
+        <p style="text-align: right;"><strong>${formData.name || ''}</strong></p>
+      `;
+    }
+    // 9. PACKS (EMPLOI / ENTREPRENEUR)
+    else {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase;">${selectedDoc?.title || 'DOCUMENT'}</h2>
+        <hr/>
+        <p><strong>Nom / Raison Sociale :</strong> ${formData.name || formData.vendeur_nom || ''}</p>
+        <p><strong>Contact :</strong> ${formData.phone || formData.vendeur_phone || ''}</p>
+        ${formData.jobTitle ? `<p><strong>Poste visé :</strong> ${formData.jobTitle}</p>` : ''}
+        ${formData.recipient ? `<p><strong>Destinataire :</strong> ${formData.recipient}</p>` : ''}
+        <br/>
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; white-space: pre-wrap; border: 1px solid #ddd;">
+          ${formData.experience || formData.docs_selection || 'Détails enregistrés pour le traitement de votre pack.'}
+        </div>
+      `;
+    }
+
+    setGeneratedBody(content);
+    setStep('preview');
+    setIsGeneratingContent(false);
   };
 
   const generatePDF = async () => {
@@ -489,12 +644,13 @@ export default function Home() {
           </div>
         )}
 
-        {/* 6. TELECHARGEMENT FINAL */}
+        {/* 6. TÉLÉCHARGEMENT FINAL & RETOUR */}
         {step === 'success' && selectedDoc && (
           <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
             <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
             <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0', marginBottom: '1rem' }}>Votre document est prêt !</h2>
 
+            {/* ELEMENT MASQUÉ POUR IMPRESSION PDF */}
             <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
               <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFF', color: '#111', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
                 <div style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: generatedBody }} />
@@ -504,8 +660,14 @@ export default function Home() {
             <button 
               onClick={generatePDF}
               disabled={isGeneratingPDF}
-              style={{ width: '100%', backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>
+              style={{ width: '100%', backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1rem' }}>
               {isGeneratingPDF ? 'Téléchargement...' : '⬇️ TÉLÉCHARGER MON PDF'}
+            </button>
+
+            <button 
+              onClick={() => setStep('home')}
+              style={{ width: '100%', backgroundColor: '#0B132B', color: '#8D99AE', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer' }}>
+              🏠 Créer un autre document
             </button>
           </div>
         )}
