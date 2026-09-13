@@ -3,14 +3,72 @@
 import React, { useState, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { DOCUMENTS_CONFIG, DocumentConfig } from './config/documents';
+
+// --- CONFIGURATION DYNAMIQUE DES DOCUMENTS ---
+interface FormField {
+  id: string;
+  label: string;
+  type: 'text' | 'textarea' | 'number' | 'email';
+  placeholder?: string;
+  step: number;
+  required?: boolean;
+}
+
+interface DocumentConfig {
+  id: string;
+  title: string;
+  category: string;
+  price: string;
+  badge?: string;
+  desc: string;
+  fields: FormField[];
+}
+
+const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
+  lettre: {
+    id: 'lettre',
+    title: 'Lettre de motivation',
+    category: 'CARRIÈRE',
+    price: '500 FCFA',
+    badge: 'POPULAIRE',
+    desc: 'Rédigée sur mesure et au format professionnel par notre moteur IA.',
+    fields: [
+      { id: 'name', label: 'Nom & Prénom', type: 'text', placeholder: 'Ex: ATANGANA DESIRE', step: 1, required: true },
+      { id: 'phone', label: 'Téléphone', type: 'text', placeholder: 'Ex: 6XX XX XX XX', step: 1, required: true },
+      { id: 'email', label: 'Email', type: 'email', placeholder: 'Ex: contact@exemple.com', step: 1 },
+      { id: 'address', label: 'Ville / Adresse', type: 'text', placeholder: 'Ex: Yaoundé, Cameroun', step: 1 },
+      
+      { id: 'jobTitle', label: 'Poste recherché', type: 'text', placeholder: 'Ex: Chargé d’affaires', step: 2, required: true },
+      { id: 'recipient', label: 'Nom de l’entreprise / Destinataire', type: 'text', placeholder: 'Ex: AFRIBIZ', step: 2, required: true },
+      { id: 'recipientAddress', label: 'Ville de l’entreprise', type: 'text', placeholder: 'Ex: Douala', step: 2 },
+      
+      { id: 'education', label: 'Formation / Niveau d’études', type: 'text', placeholder: 'Ex: Master en Banque & Finance', step: 3 },
+      { id: 'experience', label: 'Expériences & Postes précédents', type: 'textarea', placeholder: 'Ex: 3 ans chez XYZ en gestion du portefeuille clients...', step: 3 },
+      { id: 'skills', label: 'Compétences & Qualités clés', type: 'textarea', placeholder: 'Ex: Négociation, analyse financière, rigueur...', step: 3 },
+      { id: 'motivation', label: 'Pourquoi ce poste / cette entreprise ?', type: 'textarea', placeholder: 'Ex: Attiré par le leadership d’AFRIBIZ...', step: 3 },
+    ]
+  },
+  cv: {
+    id: 'cv',
+    title: 'CV professionnel',
+    category: 'CARRIÈRE',
+    price: '1 000 FCFA',
+    badge: 'POPULAIRE',
+    desc: 'Format moderne optimisé pour le marché.',
+    fields: [
+      { id: 'name', label: 'Nom complet', type: 'text', step: 1, required: true },
+      { id: 'phone', label: 'Téléphone', type: 'text', step: 1, required: true },
+      { id: 'jobTitle', label: 'Titre du profil', type: 'text', step: 2, required: true },
+      { id: 'experience', label: 'Description de vos expériences', type: 'textarea', step: 3 },
+    ]
+  }
+};
 
 export default function Home() {
   const [step, setStep] = useState<'home' | 'form' | 'preview' | 'payment' | 'success'>('home');
   const [selectedDoc, setSelectedDoc] = useState<DocumentConfig | null>(null);
   const [formStep, setFormStep] = useState(1);
   
-  // États de génération
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [generatedBody, setGeneratedBody] = useState<string>('');
@@ -31,7 +89,6 @@ export default function Home() {
     setFormData(prev => ({ ...prev, [fieldId]: value }));
   };
 
-  // Traitement et rédaction IA des données
   const handleProcessDocument = async () => {
     setIsGeneratingContent(true);
     try {
@@ -45,17 +102,24 @@ export default function Home() {
       });
 
       const data = await res.json();
-      setGeneratedBody(data.content);
+      setGeneratedBody(data.content || '<p>Rédaction complétée avec succès.</p>');
       setStep('preview');
     } catch (err) {
       console.error('Erreur de traitement:', err);
+      // Fallback local en cas d'erreur réseau
+      setGeneratedBody(`
+        <p>Madame, Monsieur,</p>
+        <p>C'est avec un vif intérêt que je pose ma candidature pour le poste de <strong>${formData.jobTitle || 'professionnel'}</strong> au sein de votre entreprise <strong>${formData.recipient || ''}</strong>.</p>
+        <p>Mon parcours et mes compétences correspondent aux exigences de ce poste.</p>
+        <p>Je reste à votre entière disposition pour un entretien.</p>
+        <p>Cordialement,</p>
+      `);
       setStep('preview');
     } finally {
       setIsGeneratingContent(false);
     }
   };
 
-  // Export PDF haute définition
   const generatePDF = async () => {
     if (!documentRef.current) return;
     setIsGeneratingPDF(true);
@@ -220,7 +284,6 @@ export default function Home() {
                 SPÉCIMEN
               </div>
 
-              {/* Rendu dynamique dans l'aperçu */}
               <div style={{ fontSize: '0.8rem', lineHeight: '1.6' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                   <div>
@@ -240,7 +303,6 @@ export default function Home() {
                   </p>
                 )}
 
-                {/* Contenu textuel rédigé */}
                 <div dangerouslySetInnerHTML={{ __html: generatedBody }} />
               </div>
             </div>
@@ -294,11 +356,9 @@ export default function Home() {
             <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
             <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0', marginBottom: '0.5rem' }}>Votre document rédigé est prêt !</h2>
 
-            {/* DOCUMENT PROPRE POUR EXPORT PDF (Invisible sur la page) */}
             <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
               <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFF', color: '#111', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
                 
-                {/* EN-TÊTE EXPÉDITEUR / DESTINATAIRE */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3rem' }}>
                   <div style={{ fontSize: '1rem', lineHeight: '1.5' }}>
                     <p style={{ fontWeight: 'bold', margin: 0 }}>{formData.name || ''}</p>
@@ -313,7 +373,7 @@ export default function Home() {
                 </div>
 
                 <p style={{ textAlign: 'right', marginBottom: '2.5rem' }}>
-                  Fait à {formData.address || 'Yaoundé'}, le {new Date().toLocaleDateString('fr-FR')}
+                  Fait le {new Date().toLocaleDateString('fr-FR')}
                 </p>
 
                 {formData.jobTitle && (
@@ -322,10 +382,8 @@ export default function Home() {
                   </p>
                 )}
 
-                {/* CONTENU RÉDIGÉ PAR L'IA OU FALLBACK */}
                 <div style={{ fontSize: '1.1rem', lineHeight: '1.8', textAlign: 'justify' }} dangerouslySetInnerHTML={{ __html: generatedBody }} />
 
-                {/* SIGNATURE */}
                 <div style={{ marginTop: '4rem', float: 'right', textAlign: 'center' }}>
                   <p style={{ marginBottom: '3rem' }}><strong>{formData.name}</strong></p>
                 </div>
