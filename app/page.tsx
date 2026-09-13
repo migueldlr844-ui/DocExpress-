@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -208,6 +208,7 @@ const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
 };
 
 export default function Home() {
+  const [showSplash, setShowSplash] = useState(true);
   const [step, setStep] = useState<'home' | 'form' | 'review' | 'preview' | 'payment' | 'success'>('home');
   const [selectedDoc, setSelectedDoc] = useState<DocumentConfig | null>(null);
   const [formStep, setFormStep] = useState(1);
@@ -219,6 +220,14 @@ export default function Home() {
 
   const documentRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
+
+  // Masquer l'écran de bienvenue après 2.5 secondes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSelectDoc = (doc: DocumentConfig) => {
     setSelectedDoc(doc);
@@ -451,6 +460,61 @@ export default function Home() {
   return (
     <div style={{ backgroundColor: '#0B132B', color: '#FFFFFF', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', position: 'relative' }}>
       
+      {/* 0. ÉCRAN DE BIENVENUE (SPLASH SCREEN) */}
+      {showSplash && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#0B132B',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          textAlign: 'center',
+          padding: '2rem'
+        }}>
+          <div style={{
+            fontSize: '2.5rem',
+            fontWeight: '900',
+            letterSpacing: '3px',
+            color: '#4CC9F0',
+            marginBottom: '0.5rem',
+            textTransform: 'uppercase',
+            textShadow: '0 0 20px rgba(76, 201, 240, 0.4)'
+          }}>
+            DOCEXPRESS
+          </div>
+          <p style={{
+            fontSize: '1.2rem',
+            color: '#8D99AE',
+            letterSpacing: '2px',
+            fontWeight: '300',
+            margin: 0
+          }}>
+            BIENVENUE
+          </p>
+          <div style={{
+            marginTop: '2rem',
+            width: '40px',
+            height: '40px',
+            border: '3px solid #1C2541',
+            borderTop: '3px solid #4CC9F0',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <style jsx>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      )}
+
       {/* EN-TÊTE FIXE AVEC BOUTON HAMBURGER / CROIX */}
       <header style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1C2541', position: 'sticky', top: 0, backgroundColor: '#0B132B', zIndex: 100 }}>
         <div>
