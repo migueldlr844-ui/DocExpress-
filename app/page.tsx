@@ -1,1291 +1,881 @@
-cat > /home/claude/docexpress/app/page.tsx << 'ENDOFFILE'
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { createClient } from '@supabase/supabase-js';
 
-// =========================================================
-// DOCEXPRESS — Page unique (expérience visiteur)
-// =========================================================
-// Ce fichier gère tout le parcours visible par le visiteur :
-// accueil -> formulaire -> vérification -> aperçu -> commande
-// -> paiement -> attente -> suivi/téléchargement.
-//
-// IMPORTANT — Pourquoi ce fichier ne "triche" pas :
-// Contrairement à un prototype 100% local, ce composant ne calcule
-// JAMAIS le prix final, ne génère JAMAIS le PDF, et ne valide JAMAIS
-// un paiement lui-même. Il se contente d'appeler les routes API
-// serveur (/api/documents, /api/orders, /api/payments/report,
-// /api/orders/[reference]) qui, elles, vivent uniquement sur le
-// serveur et sont les seules autorisées à écrire en base de données
-// ou à produire le document final. Un visiteur qui inspecte ou modifie
-// ce fichier dans son navigateur ne peut donc pas obtenir le PDF
-// sans un vrai paiement confirmé par l'administrateur.
-//
-// Fichiers serveur nécessaires (déjà fournis séparément) :
-//   app/api/documents/route.ts
-//   app/api/orders/route.ts
-//   app/api/orders/[reference]/route.ts
-//   app/api/payments/report/route.ts
-//   app/api/payments/settings/route.ts
-//   app/api/downloads/[token]/route.ts
-//   lib/**, middleware.ts, database/migrations/**
+// --- INITIALISATION SUPABASE ---
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// --- TYPES ---
-interface SelectOption {
-  value: string;
-  label: string;
-}
-
-interface RepeatableColumn {
-  name: string;
-  label: string;
-  type: 'text' | 'number';
-}
-
-interface FormFieldDefinition {
-  name: string;
-  label: string;
-  type: 'text' | 'number' | 'phone' | 'email' | 'date' | 'textarea' | 'select' | 'checkbox' | 'repeatable';
-  placeholder?: string;
-  required: boolean;
-  order: number;
-  help?: string;
-  options?: SelectOption[];
-  columns?: RepeatableColumn[];
-  min?: number;
-  max?: number;
-}
-
-interface DocumentTemplate {
+// --- INTERFACES & CONFIGURATION ---
+interface FormField {
   id: string;
-  slug: string;
-  name: string;
-  description: string;
+  label: string;
+  type: 'text' | 'textarea' | 'number' | 'email' | 'select';
+  placeholder?: string;
+  options?: string[];
+  step: number;
+  required?: boolean;
+}
+
+interface DocumentConfig {
+  id: string;
+  title: string;
   category: string;
-  price: number;
-  currency: string;
-  schema: { fields: FormFieldDefinition[] };
+  price: string;
+  priceNumeric: number;
+  badge?: string;
+  desc: string;
+  fields: FormField[];
 }
 
-interface PaymentSettings {
-  orange_money_number: string | null;
-  orange_money_account_name: string | null;
-  mtn_momo_number: string | null;
-  mtn_momo_account_name: string | null;
-  whatsapp_number: string | null;
+interface Order {
+  id: string;
+  doc_title: string;
+  price: string;
+  client_phone: string;
+  status: 'PENDING' | 'APPROVED';
+  created_at?: string;
+  form_data: Record<string, string>;
+  generated_body: string;
 }
 
-type Step =
-  | 'splash'
-  | 'home'
-  | 'form'
-  | 'review'
-  | 'preview'
-  | 'checkout'
-  | 'payment'
-  | 'pending'
-  | 'success';
-
-const CATEGORY_LABELS: Record<string, { label: string; emoji: string }> = {
-  immobilier: { label: 'Immobilier', emoji: '🏠' },
-  emploi: { label: 'Emploi', emoji: '💼' },
-  commerce: { label: 'Commerce', emoji: '🧾' },
-  administratif: { label: 'Administratif', emoji: '📄' },
+const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
+  quittance_loyer: {
+    id: 'quittance_loyer',
+    title: 'Quittance de loyer',
+    category: 'IMMOBILIER',
+    price: '500 FCFA',
+    priceNumeric: 500,
+    desc: 'Attestation officielle de paiement intégral du loyer mensuel.',
+    fields: [
+      { id: 'bailleur_nom', label: 'Nom complet du bailleur', type: 'text', step: 1, required: true },
+      { id: 'bailleur_phone', label: 'Téléphone bailleur', type: 'text', step: 1 },
+      { id: 'locataire_nom', label: 'Nom complet du locataire', type: 'text', step: 1, required: true },
+      { id: 'logement_adresse', label: 'Adresse du logement', type: 'text', placeholder: 'Ex: Omnisports, Yaoundé', step: 2, required: true },
+      { id: 'periode', label: 'Période / Mois concerné', type: 'text', placeholder: 'Ex: Mois de Septembre 2026', step: 2, required: true },
+      { id: 'loyer_montant', label: 'Montant du loyer (FCFA)', type: 'number', step: 2, required: true },
+      { id: 'paiement_date', label: 'Date de paiement', type: 'text', placeholder: 'JJ/MM/AAAA', step: 3, required: true },
+      { id: 'paiement_mode', label: 'Mode de paiement', type: 'select', options: ['Espèces', 'Orange Money', 'MTN Mobile Money', 'Virement bancaire'], step: 3, required: true }
+    ]
+  },
+  recu_loyer: {
+    id: 'recu_loyer',
+    title: 'Reçu de paiement de loyer',
+    category: 'IMMOBILIER',
+    price: '500 FCFA',
+    priceNumeric: 500,
+    desc: 'Preuve de paiement partiel ou d’acompte sur le loyer.',
+    fields: [
+      { id: 'receveur_nom', label: 'Nom du bénéficiaire (Bailleur)', type: 'text', step: 1, required: true },
+      { id: 'payeur_nom', label: 'Nom du payeur (Locataire)', type: 'text', step: 1, required: true },
+      { id: 'logement_adresse', label: 'Adresse du logement', type: 'text', step: 2, required: true },
+      { id: 'montant', label: 'Montant perçu (FCFA)', type: 'number', step: 2, required: true },
+      { id: 'motif', label: 'Motif du paiement', type: 'text', placeholder: 'Ex: Acompte loyer Septembre', step: 2, required: true },
+      { id: 'reste_a_payer', label: 'Reste éventuel à payer (FCFA)', type: 'number', step: 3 }
+    ]
+  },
+  attestation_location: {
+    id: 'attestation_location',
+    title: 'Attestations locatives',
+    category: 'IMMOBILIER',
+    price: '500 FCFA',
+    priceNumeric: 500,
+    desc: 'Attestations d’hébergement, de location ou de paiement.',
+    fields: [
+      { id: 'attestation_type', label: 'Type d’attestation', type: 'select', options: ['Attestation d’hébergement', 'Attestation de location', 'Attestation de paiement de loyer'], step: 1, required: true },
+      { id: 'declarant_nom', label: 'Nom complet du déclarant', type: 'text', step: 1, required: true },
+      { id: 'declarant_adresse', label: 'Adresse du déclarant', type: 'text', step: 1, required: true },
+      { id: 'beneficiaire_nom', label: 'Nom complet du bénéficiaire', type: 'text', step: 2, required: true },
+      { id: 'date_debut', label: 'Réside / Hébergé depuis le', type: 'text', placeholder: 'JJ/MM/AAAA', step: 2, required: true }
+    ]
+  },
+  recu_vente: {
+    id: 'recu_vente',
+    title: 'Reçu de vente',
+    category: 'BUSINESS',
+    price: '500 FCFA',
+    priceNumeric: 500,
+    desc: 'Justificatif de vente directe de produits ou services.',
+    fields: [
+      { id: 'vendeur_nom', label: 'Nom du vendeur / Boutique', type: 'text', step: 1, required: true },
+      { id: 'acheteur_nom', label: 'Nom de l’acheteur', type: 'text', step: 1, required: true },
+      { id: 'articles_liste', label: 'Désignation des articles achetés', type: 'textarea', step: 2, required: true },
+      { id: 'montant_recu', label: 'Montant encaissé (FCFA)', type: 'number', step: 3, required: true }
+    ]
+  },
+  lettre: {
+    id: 'lettre',
+    title: 'Lettre de motivation',
+    category: 'CARRIÈRE',
+    price: '500 FCFA',
+    priceNumeric: 500,
+    badge: 'POPULAIRE',
+    desc: 'Rédigée sur mesure et au format professionnel.',
+    fields: [
+      { id: 'name', label: 'Nom & Prénom', type: 'text', step: 1, required: true },
+      { id: 'phone', label: 'Téléphone', type: 'text', step: 1, required: true },
+      { id: 'address', label: 'Ville / Adresse', type: 'text', step: 1 },
+      { id: 'jobTitle', label: 'Poste recherché', type: 'text', step: 2, required: true },
+      { id: 'recipient', label: 'Entreprise / Destinataire', type: 'text', step: 2, required: true },
+      { id: 'experience', label: 'Vos points forts & Parcours', type: 'textarea', step: 3, required: true },
+      { id: 'motivation', label: 'Pourquoi ce poste ?', type: 'textarea', step: 3, required: true }
+    ]
+  },
+  contrat_bail: {
+    id: 'contrat_bail',
+    title: 'Contrat de bail d’habitation',
+    category: 'IMMOBILIER',
+    price: '1 000 FCFA',
+    priceNumeric: 1000,
+    desc: 'Bail d’habitation complet sécurisé avec clauses d’occupation.',
+    fields: [
+      { id: 'bailleur_nom', label: 'Nom du bailleur', type: 'text', placeholder: 'Ex: MBARGA', step: 1, required: true },
+      { id: 'bailleur_prenom', label: 'Prénom(s) du bailleur', type: 'text', placeholder: 'Ex: Paul', step: 1, required: true },
+      { id: 'bailleur_phone', label: 'Téléphone bailleur', type: 'text', placeholder: 'Ex: 6XX XX XX XX', step: 1, required: true },
+      { id: 'bailleur_adresse', label: 'Adresse bailleur', type: 'text', step: 1 },
+      { id: 'locataire_nom', label: 'Nom du locataire', type: 'text', placeholder: 'Ex: KOUAM', step: 2, required: true },
+      { id: 'locataire_prenom', label: 'Prénom(s) du locataire', type: 'text', step: 2, required: true },
+      { id: 'locataire_phone', label: 'Téléphone locataire', type: 'text', step: 2, required: true },
+      { id: 'logement_type', label: 'Type de logement', type: 'select', options: ['Studio', 'Appartement', 'Chambre', 'Maison villa'], step: 3, required: true },
+      { id: 'logement_ville', label: 'Ville & Quartier', type: 'text', placeholder: 'Ex: Yaoundé, Bastos', step: 3, required: true },
+      { id: 'loyer_montant', label: 'Loyer mensuel (FCFA)', type: 'number', placeholder: 'Ex: 75000', step: 3, required: true },
+      { id: 'caution_montant', label: 'Montant de la caution (FCFA)', type: 'number', step: 3 },
+      { id: 'date_debut', label: 'Date de début du bail', type: 'text', placeholder: 'JJ/MM/AAAA', step: 3, required: true }
+    ]
+  },
+  facture_simple: {
+    id: 'facture_simple',
+    title: 'Facture simple',
+    category: 'BUSINESS',
+    price: '1 000 FCFA',
+    priceNumeric: 1000,
+    desc: 'Facture commerciale claire avec calculs des totaux.',
+    fields: [
+      { id: 'vendeur_nom', label: 'Nom commercial / Entreprise', type: 'text', step: 1, required: true },
+      { id: 'vendeur_phone', label: 'Téléphone / WhatsApp', type: 'text', step: 1, required: true },
+      { id: 'client_nom', label: 'Nom du client / Entreprise', type: 'text', step: 2, required: true },
+      { id: 'objets_factures', label: 'Détail des prestations ou articles', type: 'textarea', placeholder: 'Ex: 2x Conception Logo (15000)', step: 3, required: true }
+    ]
+  },
+  facture_proforma: {
+    id: 'facture_proforma',
+    title: 'Facture proforma',
+    category: 'BUSINESS',
+    price: '1 000 FCFA',
+    priceNumeric: 1000,
+    desc: 'Devis et offre commerciale officielle avant prestation.',
+    fields: [
+      { id: 'vendeur_nom', label: 'Nom de votre entreprise', type: 'text', step: 1, required: true },
+      { id: 'client_nom', label: 'Client destinataire', type: 'text', step: 1, required: true },
+      { id: 'validite', label: 'Validité de l’offre', type: 'text', placeholder: 'Ex: 15 jours', step: 2, required: true },
+      { id: 'objets_factures', label: 'Services ou produits proposés', type: 'textarea', placeholder: 'Ex: Maintenance informatique (50000)', step: 3, required: true }
+    ]
+  },
+  bon_commande: {
+    id: 'bon_commande',
+    title: 'Bon de commande',
+    category: 'BUSINESS',
+    price: '1 000 FCFA',
+    priceNumeric: 1000,
+    desc: 'Ordre d’achat officiel adressé à un fournisseur.',
+    fields: [
+      { id: 'acheteur_nom', label: 'Nom de votre entreprise', type: 'text', step: 1, required: true },
+      { id: 'fournisseur_nom', label: 'Nom du fournisseur', type: 'text', step: 1, required: true },
+      { id: 'produits_commandes', label: 'Liste des produits commandés', type: 'textarea', step: 2, required: true },
+      { id: 'livraison_adresse', label: 'Lieu de livraison souhaité', type: 'text', step: 3, required: true }
+    ]
+  },
+  cv: {
+    id: 'cv',
+    title: 'CV professionnel',
+    category: 'CARRIÈRE',
+    price: '1 000 FCFA',
+    priceNumeric: 1000,
+    badge: 'POPULAIRE',
+    desc: 'Format moderne optimisé pour le marché de l’emploi.',
+    fields: [
+      { id: 'name', label: 'Nom complet', type: 'text', step: 1, required: true },
+      { id: 'phone', label: 'Téléphone & WhatsApp', type: 'text', step: 1, required: true },
+      { id: 'jobTitle', label: 'Poste visé', type: 'text', placeholder: 'Ex: Commercial terrain', step: 2, required: true },
+      { id: 'experience', label: 'Vos expériences (Postes, entreprises, tâches)', type: 'textarea', step: 3, required: true },
+      { id: 'education', label: 'Formations & Diplômes', type: 'textarea', step: 3 }
+    ]
+  },
+  pack_emploi: {
+    id: 'pack_emploi',
+    title: 'Pack Emploi (CV + Lettre)',
+    category: 'PACKS',
+    price: '1 500 FCFA',
+    priceNumeric: 1500,
+    badge: 'MEILLEURE OFFRE',
+    desc: 'Formulaire unique pour obtenir votre CV et votre Lettre.',
+    fields: [
+      { id: 'name', label: 'Nom complet', type: 'text', step: 1, required: true },
+      { id: 'phone', label: 'Téléphone & WhatsApp', type: 'text', step: 1, required: true },
+      { id: 'jobTitle', label: 'Poste recherché', type: 'text', step: 2, required: true },
+      { id: 'recipient', label: 'Entreprise visée', type: 'text', step: 2, required: true },
+      { id: 'experience', label: 'Parcours & Expériences', type: 'textarea', step: 3, required: true }
+    ]
+  },
+  pack_entrepreneur: {
+    id: 'pack_entrepreneur',
+    title: 'Pack Entrepreneur (5 documents)',
+    category: 'PACKS',
+    price: '4 000 FCFA',
+    priceNumeric: 4000,
+    badge: 'PRO',
+    desc: '5 documents administratifs ou commerciaux pour votre entreprise.',
+    fields: [
+      { id: 'vendeur_nom', label: 'Nom de votre entreprise', type: 'text', step: 1, required: true },
+      { id: 'vendeur_phone', label: 'Téléphone pro / WhatsApp', type: 'text', step: 1, required: true },
+      { id: 'docs_selection', label: 'Précisez les 5 documents souhaités', type: 'textarea', step: 2, required: true }
+    ]
+  }
 };
 
-function formatPrice(amount: number, currency = 'FCFA'): string {
-  return `${amount.toLocaleString('fr-FR')} ${currency}`;
-}
-
-// =========================================================
-// COMPOSANT PRINCIPAL
-// =========================================================
 export default function Home() {
-  const [step, setStep] = useState<Step>('splash');
-  const [templates, setTemplates] = useState<DocumentTemplate[]>([]);
-  const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
-  const [selectedTemplate, setSelectedTemplate] = useState<DocumentTemplate | null>(null);
-  const [formData, setFormData] = useState<Record<string, unknown>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [orderNumber, setOrderNumber] = useState<string | null>(null);
-  const [orderAmount, setOrderAmount] = useState<number>(0);
-  const [orderStatus, setOrderStatus] = useState<string>('PENDING_PAYMENT');
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [showSplash, setShowSplash] = useState(true);
+  const [step, setStep] = useState<'home' | 'form' | 'review' | 'preview' | 'payment' | 'pending' | 'success' | 'admin_login' | 'admin_dashboard'>('home');
+  const [selectedDoc, setSelectedDoc] = useState<DocumentConfig | null>(null);
+  const [formStep, setFormStep] = useState(1);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [generatedBody, setGeneratedBody] = useState<string>('');
+  const [formData, setFormData] = useState<Record<string, string>>({});
 
-  // --- Splash screen : affiché une fois par session ---
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [adminPinInput, setAdminPinInput] = useState('');
+  const [adminPinError, setAdminPinError] = useState(false);
+
+  const documentRef = useRef<HTMLDivElement>(null);
+  const sortedDocuments = Object.values(DOCUMENTS_CONFIG).sort((a, b) => a.priceNumeric - b.priceNumeric);
+
   useEffect(() => {
-    const alreadyShown = sessionStorage.getItem('docexpress_splash_shown');
-    if (alreadyShown) {
-      setStep('home');
-      return;
-    }
-    const timer = setTimeout(() => {
-      sessionStorage.setItem('docexpress_splash_shown', '1');
-      setStep('home');
-    }, 1800);
+    const timer = setTimeout(() => setShowSplash(false), 2500);
     return () => clearTimeout(timer);
   }, []);
 
-  // --- Chargement des documents depuis le serveur (jamais en dur) ---
+  // ÉCOUTE TEMPS RÉEL CLIENT & CHARGEMENT ADMIN
   useEffect(() => {
-    fetch('/api/documents')
-      .then((res) => res.json())
-      .then((data) => setTemplates(data.templates ?? []))
-      .catch(() => setTemplates([]))
-      .finally(() => setIsLoadingTemplates(false));
-  }, []);
-
-  // --- Chargement de la config de paiement au moment du paiement ---
-  useEffect(() => {
-    if (step === 'payment' && !paymentSettings) {
-      fetch('/api/payments/settings')
-        .then((res) => res.json())
-        .then(setPaymentSettings)
-        .catch(() => setPaymentSettings(null));
-    }
-  }, [step, paymentSettings]);
-
-  // --- Polling du statut de commande tant qu'on attend la validation admin ---
-  useEffect(() => {
-    if (step !== 'pending' || !orderNumber) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/orders/${orderNumber}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setOrderStatus(data.status);
-
-        if (['PDF_GENERATED', 'COMPLETED'].includes(data.status)) {
-          setStep('success');
-        }
-      } catch {
-        // on retentera au prochain intervalle
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [step, orderNumber]);
-
-  const sortedTemplates = useMemo(
-    () => [...templates].sort((a, b) => a.price - b.price),
-    [templates]
-  );
-
-  function handleSelectTemplate(template: DocumentTemplate) {
-    setSelectedTemplate(template);
-    setFormData({});
-    setErrors({});
-    setSubmitError(null);
-    setStep('form');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function updateField(name: string, value: unknown) {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  }
-
-  function handleGoToReview() {
-    if (!selectedTemplate) return;
-    const validationErrors = validateFormData(selectedTemplate.schema.fields, formData);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
-    setErrors({});
-    setStep('review');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  // --- Création de la commande : le PRIX et la RÉFÉRENCE sont
-  // entièrement recalculés côté serveur. Ce composant ne fait que
-  // transmettre les données saisies. ---
-  async function handleCreateOrder() {
-    if (!selectedTemplate) return;
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    try {
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateId: selectedTemplate.id,
-          formData,
-        }),
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        setSubmitError(result.message ?? 'Une erreur est survenue. Veuillez réessayer.');
-        setIsSubmitting(false);
-        return;
-      }
-
-      setOrderNumber(result.orderNumber);
-      setOrderAmount(computeDisplayAmount(selectedTemplate, formData));
-      setStep('checkout');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch {
-      setSubmitError('Une erreur est survenue. Veuillez réessayer.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  // --- Signalement de paiement : ne fait JAMAIS passer la commande
-  // à PAID. Cela crée seulement une demande de vérification, que
-  // seul l'administrateur authentifié peut confirmer côté serveur. ---
-  async function handleReportPayment(method: 'orange_money' | 'mtn_momo', paymentPhone: string) {
-    if (!orderNumber || !selectedTemplate) return;
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    try {
-      const res = await fetch('/api/payments/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderNumber, paymentMethod: method, paymentPhone }),
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        setSubmitError(result.message ?? 'Une erreur est survenue. Veuillez réessayer.');
-        setIsSubmitting(false);
-        return;
-      }
-
-      if (paymentSettings?.whatsapp_number) {
-        const message = buildWhatsAppMessage({
-          documentName: selectedTemplate.name,
-          amount: orderAmount,
-          currency: selectedTemplate.currency,
-          orderNumber,
-          paymentPhone,
-        });
-        const url = `https://wa.me/${paymentSettings.whatsapp_number.replace(/[^\d]/g, '')}?text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank');
-      }
-
-      setOrderStatus('PAYMENT_VERIFICATION');
-      setStep('pending');
-    } catch {
-      setSubmitError('Une erreur est survenue. Veuillez réessayer.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  // --- Une fois le document prêt, on récupère l'URL de téléchargement
-  // signée (générée par le serveur, jamais devinable) ---
-  useEffect(() => {
-    if (step === 'success' && orderNumber && !downloadUrl) {
-      fetch(`/api/orders/${orderNumber}/download-url`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.downloadUrl) setDownloadUrl(data.downloadUrl);
+    if (step === 'admin_dashboard') {
+      fetchOrders();
+      const channel = supabase
+        .channel('admin_orders')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+          fetchOrders();
         })
-        .catch(() => {});
-    }
-  }, [step, orderNumber, downloadUrl]);
+        .subscribe();
 
-  function handleReset() {
-    setSelectedTemplate(null);
+      return () => { supabase.removeChannel(channel); };
+    }
+
+    if (step === 'pending' && currentOrder) {
+      const channel = supabase
+        .channel(`order_${currentOrder.id}`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `id=eq.${currentOrder.id}`
+        }, (payload) => {
+          const updated = payload.new as Order;
+          if (updated.status === 'APPROVED') {
+            setCurrentOrder(updated);
+            setStep('success');
+          }
+        })
+        .subscribe();
+
+      return () => { supabase.removeChannel(channel); };
+    }
+  }, [step, currentOrder]);
+
+  const fetchOrders = async () => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setOrders(data as Order[]);
+    }
+  };
+
+  const handleSelectDoc = (doc: DocumentConfig) => {
+    setSelectedDoc(doc);
+    setFormStep(1);
     setFormData({});
-    setErrors({});
-    setOrderNumber(null);
-    setOrderAmount(0);
-    setOrderStatus('PENDING_PAYMENT');
-    setDownloadUrl(null);
-    setSubmitError(null);
-    setStep('home');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
+    setGeneratedBody('');
+    setStep('form');
+    setIsMenuOpen(false);
+  };
 
-  return (
-    <div className="min-h-screen bg-ink-900 text-white">
-      {step === 'splash' && <SplashScreen />}
+  const handleInputChange = (fieldId: string, value: string) => {
+    setFormData(prev => ({ ...prev, [fieldId]: value }));
+  };
 
-      {step !== 'splash' && (
-        <>
-          <TopHeader onHome={handleReset} />
+  const handleBack = () => {
+    if (step === 'form') {
+      if (formStep > 1) setFormStep(formStep - 1);
+      else setStep('home');
+    } else if (step === 'review') setStep('form');
+    else if (step === 'preview') setStep('review');
+    else if (step === 'payment') setStep('preview');
+    else if (step === 'pending') setStep('payment');
+    else if (step === 'success') setStep('home');
+    else if (step === 'admin_login' || step === 'admin_dashboard') setStep('home');
+  };
 
-          <main className="mx-auto max-w-xl px-4 py-6">
-            {step === 'home' && (
-              <HomeView
-                templates={sortedTemplates}
-                isLoading={isLoadingTemplates}
-                onSelect={handleSelectTemplate}
-              />
-            )}
+  const handleProcessDocument = async () => {
+    setIsGeneratingContent(true);
+    let content = '';
+    const id = selectedDoc?.id;
 
-            {step === 'form' && selectedTemplate && (
-              <FormView
-                template={selectedTemplate}
-                formData={formData}
-                errors={errors}
-                onChange={updateField}
-                onBack={() => setStep('home')}
-                onNext={handleGoToReview}
-              />
-            )}
-
-            {step === 'review' && selectedTemplate && (
-              <ReviewView
-                template={selectedTemplate}
-                formData={formData}
-                onEdit={() => setStep('form')}
-                onConfirm={() => setStep('preview')}
-              />
-            )}
-
-            {step === 'preview' && selectedTemplate && (
-              <PreviewView
-                template={selectedTemplate}
-                formData={formData}
-                isSubmitting={isSubmitting}
-                submitError={submitError}
-                onBack={() => setStep('review')}
-                onConfirmOrder={handleCreateOrder}
-              />
-            )}
-
-            {step === 'checkout' && selectedTemplate && orderNumber && (
-              <CheckoutView
-                template={selectedTemplate}
-                orderNumber={orderNumber}
-                amount={orderAmount}
-                onNext={() => setStep('payment')}
-              />
-            )}
-
-            {step === 'payment' && selectedTemplate && orderNumber && (
-              <PaymentView
-                documentName={selectedTemplate.name}
-                orderNumber={orderNumber}
-                amount={orderAmount}
-                currency={selectedTemplate.currency}
-                settings={paymentSettings}
-                isSubmitting={isSubmitting}
-                submitError={submitError}
-                onConfirmPayment={handleReportPayment}
-              />
-            )}
-
-            {step === 'pending' && orderNumber && selectedTemplate && (
-              <PendingView
-                orderNumber={orderNumber}
-                documentName={selectedTemplate.name}
-                amount={orderAmount}
-                currency={selectedTemplate.currency}
-                status={orderStatus}
-              />
-            )}
-
-            {step === 'success' && orderNumber && (
-              <SuccessView
-                orderNumber={orderNumber}
-                downloadUrl={downloadUrl}
-                onReset={handleReset}
-              />
-            )}
-          </main>
-        </>
-      )}
-    </div>
-  );
-}
-
-// =========================================================
-// VALIDATION (miroir de la validation serveur, pour un retour
-// immédiat à l'utilisateur — la validation qui compte reste celle
-// faite dans app/api/orders/route.ts, jamais celle-ci seule)
-// =========================================================
-function validateFormData(
-  fields: FormFieldDefinition[],
-  data: Record<string, unknown>
-): Record<string, string> {
-  const errors: Record<string, string> = {};
-
-  for (const field of fields) {
-    const value = data[field.name];
-    const isEmpty =
-      value === undefined ||
-      value === null ||
-      (typeof value === 'string' && value.trim() === '') ||
-      (Array.isArray(value) && value.length === 0);
-
-    if (field.required && isEmpty) {
-      errors[field.name] = `${field.label} est obligatoire.`;
-      continue;
-    }
-    if (isEmpty) continue;
-
-    if (field.type === 'phone' && typeof value === 'string') {
-      const digits = value.replace(/[^\d]/g, '');
-      const valid = /^6\d{8}$/.test(digits) || /^2376\d{8}$/.test(digits);
-      if (!valid) errors[field.name] = `${field.label} doit être un numéro camerounais valide.`;
-    }
-
-    if (field.type === 'email' && typeof value === 'string') {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        errors[field.name] = `${field.label} doit être une adresse email valide.`;
-      }
-    }
-
-    if (field.type === 'number' && Number.isNaN(Number(value))) {
-      errors[field.name] = `${field.label} doit être un nombre.`;
-    }
-
-    if (field.type === 'repeatable') {
-      const rows = value as Record<string, unknown>[];
-      if (!Array.isArray(rows) || rows.length === 0) {
-        errors[field.name] = `${field.label} : ajoutez au moins une ligne.`;
-      }
-    }
-  }
-
-  return errors;
-}
-
-// Estimation d'affichage uniquement (le montant réel facturé est
-// celui renvoyé/stocké côté serveur lors de la création de commande).
-function computeDisplayAmount(
-  template: DocumentTemplate,
-  formData: Record<string, unknown>
-): number {
-  const lignes = formData.lignes;
-  if (!Array.isArray(lignes)) return template.price;
-
-  let total = 0;
-  for (const row of lignes as Record<string, unknown>[]) {
-    const qty = Number(row.quantite ?? 0);
-    const price = Number(row.prix_unitaire ?? 0);
-    if (!Number.isNaN(qty) && !Number.isNaN(price)) total += qty * price;
-  }
-  const remise = Number(formData.remise ?? 0);
-  return Math.max(0, total - (Number.isNaN(remise) ? 0 : remise));
-}
-
-function buildWhatsAppMessage(params: {
-  documentName: string;
-  amount: number;
-  currency: string;
-  orderNumber: string;
-  paymentPhone: string;
-}): string {
-  return [
-    'Bonjour DocExpress 👋',
-    "Je viens d'effectuer un paiement.",
-    `📄 Document : ${params.documentName}`,
-    `💰 Montant : ${params.amount.toLocaleString('fr-FR')} ${params.currency}`,
-    `📌 Référence : ${params.orderNumber}`,
-    '📱 Numéro utilisé pour le paiement :',
-    params.paymentPhone,
-    'Merci de vérifier mon paiement.',
-  ].join('\n');
-}
-
-// =========================================================
-// SOUS-COMPOSANTS D'AFFICHAGE
-// =========================================================
-
-function SplashScreen() {
-  return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-ink-900 px-8 text-center">
-      <div className="text-3xl font-black tracking-wider text-brand-500 drop-shadow-[0_0_20px_rgba(76,201,240,0.4)]">
-        DOCEXPRESS
-      </div>
-      <p className="mt-3 text-lg font-light tracking-wide text-ink-400">Bienvenue</p>
-      <div className="mt-8 h-10 w-10 animate-spin rounded-full border-4 border-ink-800 border-t-brand-500" />
-    </div>
-  );
-}
-
-function TopHeader({ onHome }: { onHome: () => void }) {
-  return (
-    <header className="sticky top-0 z-40 border-b border-ink-800 bg-ink-900/95 px-4 py-3 backdrop-blur">
-      <button onClick={onHome} className="text-xl font-bold tracking-wide text-brand-500">
-        DocExpress
-      </button>
-    </header>
-  );
-}
-
-function HomeView({
-  templates,
-  isLoading,
-  onSelect,
-}: {
-  templates: DocumentTemplate[];
-  isLoading: boolean;
-  onSelect: (t: DocumentTemplate) => void;
-}) {
-  return (
-    <div>
-      <section className="py-6 text-center">
-        <h1 className="text-2xl font-extrabold leading-tight text-white">
-          Vos documents professionnels en quelques minutes
-        </h1>
-        <p className="mt-3 text-sm text-ink-400">
-          Choisissez votre document, renseignez vos informations, payez
-          localement et recevez votre PDF.
-        </p>
-      </section>
-
-      <h2 className="mb-3 text-base font-bold text-white">🔥 Choisissez votre document</h2>
-
-      {isLoading && <p className="text-sm text-ink-400">Chargement des documents...</p>}
-      {!isLoading && templates.length === 0 && (
-        <p className="text-sm text-ink-400">
-          Aucun document disponible pour le moment. Revenez bientôt.
-        </p>
-      )}
-
-      <div className="flex flex-col gap-3">
-        {templates.map((doc) => {
-          const cat = CATEGORY_LABELS[doc.category] ?? { label: doc.category, emoji: '📄' };
-          return (
-            <button
-              key={doc.id}
-              onClick={() => onSelect(doc)}
-              className="rounded-2xl border border-ink-700 bg-ink-800 p-4 text-left active:scale-[0.99]"
-            >
-              <span className="text-xs font-bold text-brand-500">
-                {cat.emoji} {cat.label.toUpperCase()}
-              </span>
-              <h3 className="mt-1 text-base font-semibold text-white">{doc.name}</h3>
-              <p className="mt-1 text-sm text-ink-400">{doc.description}</p>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="font-bold text-white">{formatPrice(doc.price, doc.currency)}</span>
-                <span className="text-sm font-bold text-brand-500">Créer →</span>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function ProgressBar({ label, stepIndex, totalSteps }: { label: string; stepIndex: number; totalSteps: number }) {
-  return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between text-xs text-ink-400">
-        <span>{label}</span>
-        <span>Étape {stepIndex + 1} sur {totalSteps}</span>
-      </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink-800">
-        <div
-          className="h-full rounded-full bg-brand-500 transition-all duration-300"
-          style={{ width: `${((stepIndex + 1) / totalSteps) * 100}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-const FLOW_STEPS = ['form', 'review', 'preview', 'checkout', 'payment'];
-
-function FormView({
-  template,
-  formData,
-  errors,
-  onChange,
-  onBack,
-  onNext,
-}: {
-  template: DocumentTemplate;
-  formData: Record<string, unknown>;
-  errors: Record<string, string>;
-  onChange: (name: string, value: unknown) => void;
-  onBack: () => void;
-  onNext: () => void;
-}) {
-  const sortedFields = [...template.schema.fields].sort((a, b) => a.order - b.order);
-
-  return (
-    <div>
-      <ProgressBar label="Vos informations" stepIndex={0} totalSteps={FLOW_STEPS.length} />
-
-      <div className="rounded-2xl border border-ink-700 bg-ink-800 p-5">
-        <h2 className="mb-1 text-base font-bold text-white">{template.name}</h2>
-        <p className="mb-4 text-sm text-ink-400">{template.description}</p>
-
-        <div className="space-y-4">
-          {sortedFields.map((field) => (
-            <FieldInput
-              key={field.name}
-              field={field}
-              value={formData[field.name]}
-              error={errors[field.name]}
-              onChange={(v) => onChange(field.name, v)}
-            />
-          ))}
+    if (id === 'contrat_bail') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px;">CONTRAT DE BAIL À USAGE D'HABITATION</h2>
+        <p><strong>ENTRE LES SOUSSIGNÉS :</strong></p>
+        <p><strong>Le Bailleur :</strong> M./Mme ${formData.bailleur_nom || ''} ${formData.bailleur_prenom || ''}, Tél : ${formData.bailleur_phone || ''}, Domicilié à : ${formData.bailleur_adresse || 'N/A'}.</p>
+        <p><strong>ET</strong></p>
+        <p><strong>Le Locataire :</strong> M./Mme ${formData.locataire_nom || ''} ${formData.locataire_prenom || ''}, Tél : ${formData.locataire_phone || ''}.</p>
+        <hr style="margin: 15px 0;" />
+        <p><strong>1. OBJET :</strong> Le bailleur donne à bail d'habitation le bien situé à : <strong>${formData.logement_ville || ''}</strong> (Type : ${formData.logement_type || 'Logement'}).</p>
+        <p><strong>2. DURÉE :</strong> Prend effet le <strong>${formData.date_debut || ''}</strong> pour une durée d'un an renouvelable par tacite reconduction.</p>
+        <p><strong>3. CONDITIONS FINANCIÈRES :</strong> Loyer mensuel fixé à <strong>${formData.loyer_montant || 0} FCFA</strong>. Caution versée : <strong>${formData.caution_montant || 0} FCFA</strong>.</p>
+        <br/><br/>
+        <div style="display: flex; justify-content: space-between; margin-top: 40px;">
+          <div><strong>Le Bailleur</strong><br/><br/><i>(Signature)</i></div>
+          <div><strong>Le Locataire</strong><br/><br/><i>(Signature)</i></div>
         </div>
-
-        <div className="mt-6 flex gap-3">
-          <button
-            onClick={onBack}
-            className="flex-1 rounded-xl border border-ink-700 py-3 text-sm font-semibold text-white"
-          >
-            Retour
-          </button>
-          <button
-            onClick={onNext}
-            className="flex-[2] rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white active:bg-brand-600"
-          >
-            Vérifier mes informations →
-          </button>
+      `;
+    } else if (id === 'quittance_loyer') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase;">QUITTANCE DE LOYER</h2>
+        <p style="text-align: right;"><strong>Période :</strong> ${formData.periode || ''}</p>
+        <p>Je soussigné <strong>${formData.bailleur_nom || ''}</strong> (Tél : ${formData.bailleur_phone || ''}), propriétaire du logement situé à <strong>${formData.logement_adresse || ''}</strong>,</p>
+        <p>Reconnais avoir reçu de M./Mme <strong>${formData.locataire_nom || ''}</strong> la somme de <strong>${formData.loyer_montant || 0} FCFA</strong> au titre du paiement du loyer pour la période susmentionnée.</p>
+        <p><strong>Mode de paiement :</strong> ${formData.paiement_mode || 'Espèces'} le ${formData.paiement_date || ''}.</p>
+        <p style="margin-top: 20px;"><i>Sous réserve de tous mes droits. Document délivré pour servir et valoir ce que de droit.</i></p>
+        <br/><br/>
+        <div style="text-align: right; margin-top: 30px;">
+          <strong>Le Bailleur / Gestionnaire</strong><br/><br/><i>(Signature & Cachet)</i>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function FieldInput({
-  field,
-  value,
-  error,
-  onChange,
-}: {
-  field: FormFieldDefinition;
-  value: unknown;
-  error?: string;
-  onChange: (v: unknown) => void;
-}) {
-  const baseClass =
-    'w-full rounded-xl border px-4 py-3 text-base bg-ink-900 text-white placeholder:text-ink-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 ' +
-    (error ? 'border-red-500' : 'border-ink-700');
-
-  return (
-    <div>
-      <label className="mb-1.5 block text-sm font-medium text-white">
-        {field.label}
-        {field.required && <span className="text-accent-500"> *</span>}
-      </label>
-
-      {field.type === 'textarea' && (
-        <textarea
-          className={baseClass}
-          rows={4}
-          placeholder={field.placeholder}
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
-
-      {field.type === 'select' && (
-        <select
-          className={baseClass}
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-        >
-          <option value="" disabled>Sélectionnez...</option>
-          {(field.options ?? []).map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
-          ))}
-        </select>
-      )}
-
-      {field.type === 'checkbox' && (
-        <label className="flex items-center gap-2 text-sm text-white">
-          <input
-            type="checkbox"
-            className="h-5 w-5 rounded border-ink-700"
-            checked={Boolean(value)}
-            onChange={(e) => onChange(e.target.checked)}
-          />
-          Oui
-        </label>
-      )}
-
-      {field.type === 'repeatable' && (
-        <RepeatableInput
-          columns={field.columns ?? []}
-          value={(value as Record<string, unknown>[]) ?? []}
-          onChange={onChange}
-        />
-      )}
-
-      {field.type === 'number' && (
-        <input
-          type="number"
-          inputMode="numeric"
-          className={baseClass}
-          placeholder={field.placeholder}
-          min={field.min}
-          max={field.max}
-          value={value === undefined || value === null ? '' : String(value)}
-          onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
-        />
-      )}
-
-      {field.type === 'phone' && (
-        <input
-          type="tel"
-          inputMode="tel"
-          className={baseClass}
-          placeholder={field.placeholder ?? '6XXXXXXXX'}
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
-
-      {field.type === 'email' && (
-        <input
-          type="email"
-          className={baseClass}
-          placeholder={field.placeholder}
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
-
-      {field.type === 'date' && (
-        <input
-          type="date"
-          className={baseClass}
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
-
-      {field.type === 'text' && (
-        <input
-          type="text"
-          className={baseClass}
-          placeholder={field.placeholder}
-          value={(value as string) ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
-
-      {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
-    </div>
-  );
-}
-
-function RepeatableInput({
-  columns,
-  value,
-  onChange,
-}: {
-  columns: RepeatableColumn[];
-  value: Record<string, unknown>[];
-  onChange: (rows: Record<string, unknown>[]) => void;
-}) {
-  function addRow() {
-    const empty: Record<string, unknown> = {};
-    for (const col of columns) empty[col.name] = '';
-    onChange([...value, empty]);
-  }
-  function removeRow(i: number) {
-    onChange(value.filter((_, idx) => idx !== i));
-  }
-  function updateCell(i: number, colName: string, cellValue: unknown) {
-    onChange(value.map((row, idx) => (idx === i ? { ...row, [colName]: cellValue } : row)));
-  }
-
-  return (
-    <div className="space-y-3 rounded-xl border border-ink-700 bg-ink-900 p-3">
-      {value.length === 0 && <p className="text-sm text-ink-400">Aucune ligne ajoutée.</p>}
-      {value.map((row, i) => (
-        <div key={i} className="space-y-2 rounded-lg bg-ink-800 p-3">
-          {columns.map((col) => (
-            <div key={col.name}>
-              <label className="mb-1 block text-xs font-medium text-ink-400">{col.label}</label>
-              <input
-                type={col.type === 'number' ? 'number' : 'text'}
-                className="w-full rounded-lg border border-ink-700 bg-ink-900 px-3 py-2 text-sm text-white focus:border-brand-500 focus:outline-none"
-                value={(row[col.name] as string) ?? ''}
-                onChange={(e) =>
-                  updateCell(
-                    i,
-                    col.name,
-                    col.type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value
-                  )
-                }
-              />
-            </div>
-          ))}
-          <button onClick={() => removeRow(i)} className="text-xs font-medium text-red-400">
-            Supprimer cette ligne
-          </button>
+      `;
+    } else if (id === 'recu_loyer') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase;">REÇU DE PAIEMENT DE LOYER</h2>
+        <p>Reçu de M./Mme <strong>${formData.payeur_nom || ''}</strong></p>
+        <p>La somme de : <strong>${formData.montant || 0} FCFA</strong></p>
+        <p><strong>Motif :</strong> ${formData.motif || 'Acompte / Loyer'} pour le logement situé à ${formData.logement_adresse || ''}.</p>
+        <p><strong>Reste à payer :</strong> ${formData.reste_a_payer || 0} FCFA.</p>
+        <br/><br/>
+        <div style="display: flex; justify-content: space-between; margin-top: 30px;">
+          <div><strong>Le Payeur</strong></div>
+          <div><strong>Le Bénéficiaire (${formData.receveur_nom || ''})</strong><br/><br/><i>(Signature)</i></div>
         </div>
-      ))}
-      <button
-        onClick={addRow}
-        className="w-full rounded-lg border border-dashed border-brand-500 py-2 text-sm font-medium text-brand-500"
-      >
-        + Ajouter une ligne
-      </button>
-    </div>
-  );
-}
-
-function ReviewView({
-  template,
-  formData,
-  onEdit,
-  onConfirm,
-}: {
-  template: DocumentTemplate;
-  formData: Record<string, unknown>;
-  onEdit: () => void;
-  onConfirm: () => void;
-}) {
-  const sortedFields = [...template.schema.fields].sort((a, b) => a.order - b.order);
-
-  return (
-    <div>
-      <ProgressBar label="Vérification" stepIndex={1} totalSteps={FLOW_STEPS.length} />
-
-      <div className="rounded-2xl border border-ink-700 bg-ink-800 p-5">
-        <h2 className="mb-4 text-base font-semibold text-brand-500">🔍 Vérifiez vos informations</h2>
-
-        <div className="space-y-3 rounded-xl bg-ink-900 p-4">
-          {sortedFields.map((field) => {
-            const value = formData[field.name];
-            if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
-              return null;
-            }
-            return (
-              <div key={field.name} className="border-b border-ink-800 pb-2">
-                <span className="block text-xs text-ink-400">{field.label}</span>
-                <span className="text-sm font-medium text-white">
-                  {field.type === 'repeatable'
-                    ? `${(value as unknown[]).length} ligne(s)`
-                    : field.type === 'checkbox'
-                    ? (value ? 'Oui' : 'Non')
-                    : String(value)}
-                </span>
-              </div>
-            );
-          })}
+      `;
+    } else if (id === 'attestation_location') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase;">${(formData.attestation_type || "ATTESTATION").toUpperCase()}</h2>
+        <br/>
+        <p>Je soussigné(e) <strong>${formData.declarant_nom || ''}</strong>, demeurant à <strong>${formData.declarant_adresse || ''}</strong>,</p>
+        <p>Atteste sur l'honneur que M./Mme <strong>${formData.beneficiaire_nom || ''}</strong> est hébergé(e) / réside à mon adresse susmentionnée depuis le <strong>${formData.date_debut || ''}</strong>.</p>
+        <p>En foi de quoi, la présente attestation est établie pour servir et valoir ce que de droit.</p>
+        <br/><br/>
+        <div style="text-align: right; margin-top: 40px;">
+          <strong>Fait pour valoir de droit,</strong><br/><br/>
+          <strong>Le Déclarant</strong><br/><i>(Signature)</i>
         </div>
+      `;
+    } else if (id === 'facture_simple' || id === 'facture_proforma' || id === 'recu_vente') {
+      const isProforma = id === 'facture_proforma';
+      const isRecu = id === 'recu_vente';
+      const title = isProforma ? 'FACTURE PROFORMA' : isRecu ? 'REÇU DE VENTE' : 'FACTURE';
 
-        <div className="mt-5 flex gap-3">
-          <button onClick={onEdit} className="flex-1 rounded-xl border border-ink-700 py-3 text-sm font-semibold text-white">
-            ✏ Modifier
-          </button>
-          <button onClick={onConfirm} className="flex-[2] rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white active:bg-brand-600">
-            🚀 Voir l&apos;aperçu →
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PreviewView({
-  template,
-  formData,
-  isSubmitting,
-  submitError,
-  onBack,
-  onConfirmOrder,
-}: {
-  template: DocumentTemplate;
-  formData: Record<string, unknown>;
-  isSubmitting: boolean;
-  submitError: string | null;
-  onBack: () => void;
-  onConfirmOrder: () => void;
-}) {
-  const sortedFields = [...template.schema.fields].sort((a, b) => a.order - b.order);
-  const displayAmount = computeDisplayAmount(template, formData);
-
-  return (
-    <div>
-      <ProgressBar label="Aperçu & commande" stepIndex={2} totalSteps={FLOW_STEPS.length} />
-
-      {/* Document "papier" volontairement clair, même en thème sombre */}
-      <div className="relative overflow-hidden rounded-2xl border border-ink-700 bg-white text-gray-900 shadow-sm">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 z-10 flex flex-wrap content-around items-center justify-center gap-8 overflow-hidden opacity-[0.15]"
-        >
-          {Array.from({ length: 6 }).map((_, i) => (
-            <span key={i} className="rotate-[-30deg] whitespace-nowrap text-4xl font-black text-red-600">
-              SPÉCIMEN
-            </span>
-          ))}
-        </div>
-
-        <div className="relative z-0 p-6">
-          <p className="text-xs uppercase tracking-wide text-gray-400">Aperçu du document</p>
-          <h2 className="mt-1 text-lg font-bold text-gray-900">{template.name}</h2>
-
-          <dl className="mt-4 space-y-3">
-            {sortedFields.map((field) => {
-              const value = formData[field.name];
-              if (value === undefined || value === null || value === '') return null;
-
-              if (field.type === 'repeatable' && Array.isArray(value)) {
-                return (
-                  <div key={field.name}>
-                    <dt className="text-xs font-medium text-gray-500">{field.label}</dt>
-                    <dd className="mt-1 overflow-hidden rounded-lg border border-gray-100">
-                      <table className="w-full text-xs">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            {(field.columns ?? []).map((col) => (
-                              <th key={col.name} className="p-2 text-left font-medium text-gray-600">{col.label}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(value as Record<string, unknown>[]).map((row, i) => (
-                            <tr key={i} className="border-t border-gray-100">
-                              {(field.columns ?? []).map((col) => (
-                                <td key={col.name} className="p-2 text-gray-800">{String(row[col.name] ?? '')}</td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </dd>
-                  </div>
-                );
-              }
-
-              return (
-                <div key={field.name} className="flex justify-between gap-4 text-sm">
-                  <dt className="text-gray-500">{field.label}</dt>
-                  <dd className="text-right font-medium text-gray-900">
-                    {field.type === 'checkbox' ? (value ? 'Oui' : 'Non') : String(value)}
-                  </dd>
-                </div>
-              );
-            })}
-          </dl>
-
-          <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
-            <span className="text-sm text-gray-500">Prix</span>
-            <span className="text-lg font-bold text-brand-700">
-              {formatPrice(displayAmount, template.currency)}
-            </span>
+      content = `
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 10px;">
+          <div>
+            <h2 style="margin: 0; color: #111;">${formData.vendeur_nom || 'ENTREPRISE'}</h2>
+            <p style="margin: 5px 0;">Tél/WhatsApp : ${formData.vendeur_phone || ''}</p>
+          </div>
+          <div style="text-align: right;">
+            <h3 style="margin: 0; color: #4361EE;">${title}</h3>
+            ${isProforma ? `<p style="margin: 5px 0;">Validité : ${formData.validite || '15 jours'}</p>` : ''}
           </div>
         </div>
-      </div>
-
-      {submitError && <p className="mt-4 text-sm text-red-400">{submitError}</p>}
-
-      <div className="mt-5 space-y-3">
-        <button
-          onClick={onConfirmOrder}
-          disabled={isSubmitting}
-          className="w-full rounded-xl bg-brand-500 py-4 text-base font-semibold text-white shadow-sm active:bg-brand-600 disabled:opacity-60"
-        >
-          {isSubmitting ? 'Création de la commande...' : `Commander pour ${formatPrice(displayAmount, template.currency)}`}
-        </button>
-        <button
-          onClick={onBack}
-          disabled={isSubmitting}
-          className="w-full rounded-xl border border-ink-700 py-4 text-base font-medium text-white"
-        >
-          Modifier mes informations
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function CheckoutView({
-  template,
-  orderNumber,
-  amount,
-  onNext,
-}: {
-  template: DocumentTemplate;
-  orderNumber: string;
-  amount: number;
-  onNext: () => void;
-}) {
-  return (
-    <div>
-      <ProgressBar label="Récapitulatif" stepIndex={3} totalSteps={FLOW_STEPS.length} />
-
-      <h1 className="mb-4 text-xl font-bold text-white">Récapitulatif de votre commande</h1>
-
-      <div className="rounded-2xl border border-ink-700 bg-ink-800 p-5">
-        <div className="flex justify-between text-sm">
-          <span className="text-ink-400">Document</span>
-          <span className="font-medium text-white">{template.name}</span>
+        <br/>
+        <p><strong>Client :</strong> ${formData.client_nom || formData.acheteur_nom || ''}</p>
+        <br/>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+          <thead>
+            <tr style="background: #f2f2f2; text-align: left;">
+              <th style="padding: 8px; border: 1px solid #ddd;">Désignation / Prestation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 12px; border: 1px solid #ddd; white-space: pre-wrap;">${formData.objets_factures || formData.articles_liste || ''}</td>
+            </tr>
+          </tbody>
+        </table>
+        ${formData.montant_recu ? `<h3 style="text-align: right; margin-top: 15px;">Total encaissé : ${formData.montant_recu} FCFA</h3>` : ''}
+        <br/><br/>
+        <div style="text-align: right; margin-top: 30px;">
+          <strong>La Direction / Le Vendeur</strong><br/><br/><i>(Signature)</i>
         </div>
-        <div className="mt-3 flex justify-between text-sm">
-          <span className="text-ink-400">Référence</span>
-          <span className="font-mono font-medium text-white">{orderNumber}</span>
+      `;
+    } else if (id === 'bon_commande') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase;">BON DE COMMANDE</h2>
+        <p><strong>Acheteur :</strong> ${formData.acheteur_nom || ''}</p>
+        <p><strong>Fournisseur :</strong> ${formData.fournisseur_nom || ''}</p>
+        <p><strong>Lieu de livraison :</strong> ${formData.livraison_adresse || ''}</p>
+        <hr/>
+        <h3>Détail des articles commandés :</h3>
+        <div style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; white-space: pre-wrap;">
+          ${formData.produits_commandes || ''}
         </div>
-        <div className="mt-3 flex justify-between text-sm">
-          <span className="text-ink-400">Statut</span>
-          <span className="font-medium text-brand-500">En attente de paiement</span>
+        <br/><br/>
+        <div style="display: flex; justify-content: space-between; margin-top: 30px;">
+          <div><strong>L'Acheteur</strong><br/><br/><i>(Signature)</i></div>
+          <div><strong>Confirmation Fournisseur</strong><br/><br/><i>(Signature)</i></div>
         </div>
-        <div className="mt-4 flex justify-between border-t border-ink-700 pt-4">
-          <span className="font-semibold text-white">Total</span>
-          <span className="text-lg font-bold text-brand-500">{formatPrice(amount, template.currency)}</span>
+      `;
+    } else if (id === 'cv') {
+      content = `
+        <div style="border-bottom: 3px solid #4361EE; padding-bottom: 10px; margin-bottom: 20px;">
+          <h1 style="margin: 0; color: #111; text-transform: uppercase;">${formData.name || ''}</h1>
+          <h3 style="margin: 5px 0; color: #4361EE;">${formData.jobTitle || ''}</h3>
+          <p style="margin: 0; color: #555;">Tél : ${formData.phone || ''}</p>
         </div>
-      </div>
+        
+        <h3 style="background: #f0f0f0; padding: 5px 10px; border-left: 4px solid #4361EE;">EXPÉRIENCES PROFESSIONNELLES</h3>
+        <p style="white-space: pre-wrap; line-height: 1.6;">${formData.experience || ''}</p>
 
-      <button
-        onClick={onNext}
-        className="mt-6 block w-full rounded-xl bg-brand-500 py-4 text-center text-base font-semibold text-white shadow-sm active:bg-brand-600"
-      >
-        Procéder au paiement
-      </button>
-    </div>
-  );
-}
+        <h3 style="background: #f0f0f0; padding: 5px 10px; border-left: 4px solid #4361EE; margin-top: 20px;">FORMATIONS & DIPLÔMES</h3>
+        <p style="white-space: pre-wrap; line-height: 1.6;">${formData.education || 'Non renseigné'}</p>
+      `;
+    } else if (id === 'lettre') {
+      content = `
+        <p><strong>${formData.name || ''}</strong><br/>Tél : ${formData.phone || ''}<br/>${formData.address || ''}</p>
+        <p style="text-align: right;"><strong>À l'attention du Recruteur</strong><br/>${formData.recipient || 'L\'Entreprise'}</p>
+        <br/>
+        <p><strong>Objet : Candidature au poste de ${formData.jobTitle || ''}</strong></p>
+        <br/>
+        <p>Madame, Monsieur,</p>
+        <p>C'est avec un vif intérêt que je vous adresse ma candidature pour le poste de <strong>${formData.jobTitle || ''}</strong> au sein de votre structure.</p>
+        <p>${formData.motivation || ''}</p>
+        <p>Fort de mon parcours :</p>
+        <p style="white-space: pre-wrap;">${formData.experience || ''}</p>
+        <p>Je reste à votre entière disposition pour un entretien d'embauche.</p>
+        <br/>
+        <p style="text-align: right;"><strong>${formData.name || ''}</strong></p>
+      `;
+    } else {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase;">${selectedDoc?.title || 'DOCUMENT'}</h2>
+        <hr/>
+        <p><strong>Nom / Raison Sociale :</strong> ${formData.name || formData.vendeur_nom || ''}</p>
+        <p><strong>Contact :</strong> ${formData.phone || formData.vendeur_phone || ''}</p>
+        ${formData.jobTitle ? `<p><strong>Poste visé :</strong> ${formData.jobTitle}</p>` : ''}
+        ${formData.recipient ? `<p><strong>Destinataire :</strong> ${formData.recipient}</p>` : ''}
+        <br/>
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; white-space: pre-wrap; border: 1px solid #ddd;">
+          ${formData.experience || formData.docs_selection || 'Détails enregistrés pour le traitement de votre pack.'}
+        </div>
+      `;
+    }
 
-function PaymentView({
-  documentName,
-  orderNumber,
-  amount,
-  currency,
-  settings,
-  isSubmitting,
-  submitError,
-  onConfirmPayment,
-}: {
-  documentName: string;
-  orderNumber: string;
-  amount: number;
-  currency: string;
-  settings: PaymentSettings | null;
-  isSubmitting: boolean;
-  submitError: string | null;
-  onConfirmPayment: (method: 'orange_money' | 'mtn_momo', paymentPhone: string) => void;
-}) {
-  const [hasPaid, setHasPaid] = useState(false);
-  const [method, setMethod] = useState<'orange_money' | 'mtn_momo'>('orange_money');
-  const [paymentPhone, setPaymentPhone] = useState('');
-  const [localError, setLocalError] = useState<string | null>(null);
+    setGeneratedBody(content);
+    setStep('preview');
+    setIsGeneratingContent(false);
+  };
 
-  function handleConfirm() {
-    if (!paymentPhone.trim()) {
-      setLocalError('Veuillez indiquer le numéro utilisé pour le paiement.');
+  const handleInitiatePayment = async () => {
+    if (!selectedDoc) return;
+    const refCode = `DOC-${Math.floor(100000 + Math.random() * 900000)}`;
+    const phone = formData.phone || formData.bailleur_phone || formData.vendeur_phone || formData.payeur_phone || 'Non renseigné';
+
+    const newOrder: Order = {
+      id: refCode,
+      doc_title: selectedDoc.title,
+      price: selectedDoc.price,
+      client_phone: phone,
+      status: 'PENDING',
+      form_data: formData,
+      generated_body: generatedBody
+    };
+
+    const { error } = await supabase.from('orders').insert([newOrder]);
+
+    if (error) {
+      alert("Erreur lors de l'enregistrement de la commande. Veuillez réespayer.");
+      console.error(error);
       return;
     }
-    setLocalError(null);
-    onConfirmPayment(method, paymentPhone);
-  }
+
+    setCurrentOrder(newOrder);
+
+    const message = encodeURIComponent(
+      `Bonjour DocExpress,\nJe viens d'effectuer le paiement de ${selectedDoc.price} pour le document "${selectedDoc.title}".\n\nRéférence : ${refCode}`
+    );
+    window.open(`https://wa.me/237655069396?text=${message}`, '_blank');
+
+    setStep('pending');
+  };
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPinInput === '1234') {
+      setAdminPinError(false);
+      setStep('admin_dashboard');
+    } else {
+      setAdminPinError(true);
+    }
+  };
+
+  const handleApproveOrder = async (orderId: string) => {
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: 'APPROVED' })
+      .eq('id', orderId);
+
+    if (!error) {
+      fetchOrders();
+    }
+  };
+
+  const generatePDF = async () => {
+    if (!documentRef.current) return;
+    setIsGeneratingPDF(true);
+
+    try {
+      const element = documentRef.current;
+      const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgWidth = 210;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(`${selectedDoc?.title || currentOrder?.doc_title || 'Document'}_DocExpress.pdf`);
+    } catch (error) {
+      console.error('Erreur lors du téléchargement :', error);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '0.8rem',
+    borderRadius: '8px',
+    border: '1px solid #3A506B',
+    backgroundColor: '#0B132B',
+    color: '#FFF',
+    boxSizing: 'border-box',
+    fontFamily: 'inherit'
+  };
 
   return (
-    <div>
-      <ProgressBar label="Paiement" stepIndex={4} totalSteps={FLOW_STEPS.length} />
+    <div style={{ backgroundColor: '#0B132B', color: '#FFFFFF', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', position: 'relative' }}>
+      
+      {/* 0. ÉCRAN DE BIENVENUE */}
+      {showSplash && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#0B132B',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          textAlign: 'center',
+          padding: '2rem'
+        }}>
+          <div style={{ fontSize: '2.5rem', fontWeight: '900', letterSpacing: '3px', color: '#4CC9F0', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
+            DOCEXPRESS
+          </div>
+          <p style={{ fontSize: '0.75rem', letterSpacing: '2px', color: '#F72585', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '1rem' }}>
+            PAR DESIRE ATANGANA ATANGANA
+          </p>
+          <p style={{ fontSize: '1.2rem', color: '#8D99AE', letterSpacing: '2px', fontWeight: '300', margin: 0 }}>
+            BIENVENUE
+          </p>
+        </div>
+      )}
 
-      <div className="space-y-6">
-        <div className="rounded-2xl border border-ink-700 bg-ink-800 p-5">
-          <h2 className="font-semibold text-white">Finaliser votre commande</h2>
-          <div className="mt-3 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-ink-400">Document</span>
-              <span className="font-medium text-white">{documentName}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-ink-400">Montant</span>
-              <span className="font-medium text-brand-500">{formatPrice(amount, currency)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-ink-400">Référence</span>
-              <span className="font-mono font-medium text-white">{orderNumber}</span>
+      {/* EN-TÊTE FIXE */}
+      <header style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1C2541', position: 'sticky', top: 0, backgroundColor: '#0B132B', zIndex: 100 }}>
+        <div>
+          <span style={{ fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '1px', color: '#4CC9F0', cursor: 'pointer' }} onClick={() => { setStep('home'); setIsMenuOpen(false); }}>DOCEXPRESS</span>
+          <p style={{ fontSize: '0.65rem', color: '#F72585', fontWeight: 'bold', margin: '0.1rem 0 0 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            par DESIRE ATANGANA ATANGANA
+          </p>
+        </div>
+
+        <button 
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          aria-label="Menu"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-around', width: '32px', height: '32px', zIndex: 101 }}>
+          <span style={{ width: '100%', height: '3px', backgroundColor: '#4CC9F0', borderRadius: '2px' }} />
+          <span style={{ width: '100%', height: '3px', backgroundColor: '#4CC9F0', borderRadius: '2px' }} />
+          <span style={{ width: '100%', height: '3px', backgroundColor: '#4CC9F0', borderRadius: '2px' }} />
+        </button>
+      </header>
+
+      {/* MENU DÉROULANT */}
+      {isMenuOpen && (
+        <div style={{ position: 'fixed', top: '60px', left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11, 19, 43, 0.98)', zIndex: 99, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }}>
+          <button onClick={() => { setStep('home'); setIsMenuOpen(false); }} style={{ backgroundColor: '#1C2541', color: '#FFF', border: '1px solid #3A506B', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', textAlign: 'left', cursor: 'pointer' }}>
+            🏠 Page d'accueil
+          </button>
+          <button onClick={() => { setStep('admin_login'); setIsMenuOpen(false); }} style={{ backgroundColor: '#1C2541', color: '#F72585', border: '1px solid #F72585', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', textAlign: 'left', cursor: 'pointer' }}>
+            🔒 Espace Administration
+          </button>
+          <div>
+            <h3 style={{ fontSize: '0.9rem', color: '#8D99AE', textTransform: 'uppercase', marginBottom: '0.8rem' }}>Tous les documents</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {sortedDocuments.map((doc) => (
+                <div key={doc.id} onClick={() => handleSelectDoc(doc)} style={{ backgroundColor: '#0B132B', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid #1C2541', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.95rem', color: '#FFF' }}>{doc.title}</span>
+                  <span style={{ fontSize: '0.8rem', color: '#4CC9F0', fontWeight: 'bold' }}>{doc.price}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
+      )}
 
-        {!hasPaid ? (
-          <>
-            <div className="space-y-3">
-              {settings?.orange_money_number && (
-                <div className="rounded-2xl bg-ink-900 p-4" style={{ borderLeft: '4px solid #FF7900' }}>
-                  <p className="text-sm font-bold" style={{ color: '#FF7900' }}>🟠 Orange Money</p>
-                  <p className="mt-1 text-xl font-bold tracking-wide text-white">{settings.orange_money_number}</p>
-                  <p className="mt-1 text-xs text-ink-400">
-                    Nom du compte : {settings.orange_money_account_name ?? 'À configurer'}
-                  </p>
+      <main style={{ maxWidth: '600px', margin: '0 auto', padding: '1.5rem' }}>
+
+        {step !== 'home' && (
+          <div style={{ marginBottom: '1rem' }}>
+            <button onClick={handleBack} style={{ background: 'none', border: 'none', color: '#8D99AE', fontSize: '0.9rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              ⬅️ Page précédente
+            </button>
+          </div>
+        )}
+
+        {/* ACCUEIL */}
+        {step === 'home' && (
+          <div>
+            <section style={{ textAlign: 'center', padding: '1.5rem 0' }}>
+              <div style={{ display: 'inline-block', backgroundColor: 'rgba(247, 37, 133, 0.1)', border: '1px solid #F72585', color: '#F72585', padding: '0.3rem 0.8rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '1rem', letterSpacing: '1px' }}>
+                UNE CRÉATION DE DESIRE ATANGANA ATANGANA
+              </div>
+              <h1 style={{ fontSize: '1.8rem', fontWeight: '800', lineHeight: 1.2, marginBottom: '0.8rem' }}>
+                Vos documents professionnels rédigés sur mesure.
+              </h1>
+              <p style={{ color: '#8D99AE', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
+                Transformez vos informations en documents officiels instantanément.
+              </p>
+            </section>
+
+            <section>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.2rem', margin: 0 }}>🔥 Choisissez votre document</h2>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {sortedDocuments.map((doc) => (
+                  <div key={doc.id} onClick={() => handleSelectDoc(doc)} style={{ backgroundColor: '#1C2541', borderRadius: '12px', padding: '1.2rem', border: '1px solid #3A506B', cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: '0.7rem', color: '#4CC9F0', fontWeight: 'bold' }}>{doc.category}</span>
+                      {doc.badge && <span style={{ backgroundColor: '#4361EE', color: '#FFF', fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>{doc.badge}</span>}
+                    </div>
+                    <h3 style={{ fontSize: '1.1rem', margin: '0.4rem 0' }}>{doc.title}</h3>
+                    <p style={{ fontSize: '0.85rem', color: '#8D99AE', margin: '0 0 1rem 0' }}>{doc.desc}</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 'bold', color: '#FFF' }}>{doc.price}</span>
+                      <span style={{ color: '#4CC9F0', fontWeight: 'bold', fontSize: '0.9rem' }}>Créer →</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* FORMULAIRE */}
+        {step === 'form' && selectedDoc && (
+          <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
+              <span style={{ fontSize: '0.8rem', color: '#4CC9F0' }}>Création de votre {selectedDoc.title}</span>
+              <h2 style={{ fontSize: '1.2rem', margin: '0.2rem 0 0.8rem 0' }}>Étape {formStep} sur 3</h2>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {selectedDoc.fields.filter(f => f.step === formStep).map(field => (
+                <div key={field.id}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#8D99AE' }}>
+                    {field.label} {field.required && '*'}
+                  </label>
+                  {field.type === 'textarea' ? (
+                    <textarea value={formData[field.id] || ''} onChange={(e) => handleInputChange(field.id, e.target.value)} placeholder={field.placeholder} style={{ ...inputStyle, minHeight: '90px' }} />
+                  ) : field.type === 'select' ? (
+                    <select value={formData[field.id] || ''} onChange={(e) => handleInputChange(field.id, e.target.value)} style={inputStyle}>
+                      <option value="">Sélectionnez...</option>
+                      {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  ) : (
+                    <input type={field.type} value={formData[field.id] || ''} onChange={(e) => handleInputChange(field.id, e.target.value)} placeholder={field.placeholder} style={inputStyle} />
+                  )}
                 </div>
-              )}
-              {settings?.mtn_momo_number && (
-                <div className="rounded-2xl bg-ink-900 p-4" style={{ borderLeft: '4px solid #FFCC00' }}>
-                  <p className="text-sm font-bold" style={{ color: '#FFCC00' }}>🟡 MTN Mobile Money</p>
-                  <p className="mt-1 text-xl font-bold tracking-wide text-white">{settings.mtn_momo_number}</p>
-                  <p className="mt-1 text-xs text-ink-400">
-                    Nom du compte : {settings.mtn_momo_account_name ?? 'À configurer'}
-                  </p>
-                </div>
-              )}
-              {settings && !settings.orange_money_number && !settings.mtn_momo_number && (
-                <p className="rounded-xl bg-accent-500/10 p-4 text-sm text-accent-500">
-                  Aucun moyen de paiement n&apos;est configuré pour le moment. Contactez-nous sur WhatsApp.
-                </p>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+              <button onClick={handleBack} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Retour</button>
+              {formStep < 3 ? (
+                <button onClick={() => setFormStep(formStep + 1)} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Continuer →</button>
+              ) : (
+                <button onClick={() => setStep('review')} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Vérifier mes infos →</button>
               )}
             </div>
+          </div>
+        )}
 
-            <button
-              onClick={() => setHasPaid(true)}
-              className="w-full rounded-xl bg-brand-500 py-4 text-base font-semibold text-white shadow-sm active:bg-brand-600"
-            >
-              J&apos;ai effectué le paiement
-            </button>
-          </>
-        ) : (
-          <div className="space-y-4 rounded-2xl border border-ink-700 bg-ink-800 p-5">
-            <h3 className="font-semibold text-white">Confirmez votre paiement</h3>
+        {/* REVUE */}
+        {step === 'review' && selectedDoc && (
+          <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+            <h2 style={{ fontSize: '1.2rem', color: '#4CC9F0', marginBottom: '1rem' }}>🔍 Vérifiez vos informations</h2>
+            <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem' }}>
+              {selectedDoc.fields.map(field => (
+                formData[field.id] ? (
+                  <div key={field.id} style={{ borderBottom: '1px solid #1C2541', paddingBottom: '0.4rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#8D99AE', display: 'block' }}>{field.label}</span>
+                    <span style={{ fontSize: '0.9rem', color: '#FFF', fontWeight: 'bold' }}>{formData[field.id]}</span>
+                  </div>
+                ) : null
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button onClick={() => setStep('form')} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>✏️ Modifier</button>
+              <button onClick={handleProcessDocument} disabled={isGeneratingContent} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {isGeneratingContent ? 'Génération...' : '🚀 Générer mon document →'}
+              </button>
+            </div>
+          </div>
+        )}
 
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-white">Méthode utilisée</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setMethod('orange_money')}
-                  className={
-                    'flex-1 rounded-xl border py-3 text-sm font-medium ' +
-                    (method === 'orange_money' ? 'border-brand-500 bg-brand-500/10 text-brand-500' : 'border-ink-700 text-ink-400')
-                  }
-                >
-                  Orange Money
-                </button>
-                <button
-                  onClick={() => setMethod('mtn_momo')}
-                  className={
-                    'flex-1 rounded-xl border py-3 text-sm font-medium ' +
-                    (method === 'mtn_momo' ? 'border-brand-500 bg-brand-500/10 text-brand-500' : 'border-ink-700 text-ink-400')
-                  }
-                >
-                  MTN MoMo
-                </button>
+        {/* APERÇU */}
+        {step === 'preview' && selectedDoc && (
+          <div>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', textAlign: 'center' }}>Aperçu de votre document</h2>
+            <div style={{ backgroundColor: '#FFF', color: '#111', padding: '1.5rem', borderRadius: '8px', position: 'relative', overflow: 'hidden', minHeight: '350px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontFamily: "'Times New Roman', Times, serif" }}>
+              <div style={{ position: 'absolute', top: '35%', left: '5%', right: '5%', transform: 'rotate(-25deg)', fontSize: '2.2rem', fontWeight: '900', color: 'rgba(230, 57, 70, 0.18)', pointerEvents: 'none', userSelect: 'none', textAlign: 'center', border: '4px dashed rgba(230, 57, 70, 0.25)', padding: '10px' }}>
+                SPÉCIMEN - DOCEXPRESS
+              </div>
+              <div style={{ fontSize: '0.85rem', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: generatedBody }} />
+            </div>
+            <div style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+              <div>
+                <span style={{ fontSize: '0.9rem', display: 'block' }}>{selectedDoc.title}</span>
+                <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#4CC9F0' }}>{selectedDoc.price}</span>
+              </div>
+              <button onClick={() => setStep('payment')} style={{ backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem 1.2rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Payer pour télécharger →</button>
+            </div>
+          </div>
+        )}
+
+        {/* PAIEMENT */}
+        {step === 'payment' && selectedDoc && (
+          <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Paiement Mobile</h2>
+            <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1rem' }}>Effectuez le dépôt du montant exact, puis validez sur WhatsApp.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem' }}>
+              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FF7900' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FF7900' }}>🟠 Orange Money</span>
+                <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.05rem' }}>655069396</p>
+              </div>
+              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FFCC00' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FFCC00' }}>🟡 MTN Mobile Money</span>
+                <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.05rem' }}>655069396</p>
               </div>
             </div>
+            <button onClick={handleInitiatePayment} style={{ width: '100%', backgroundColor: '#25D366', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>💬 CONFIRMER SUR WHATSAPP</button>
+          </div>
+        )}
 
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-white">
-                Numéro utilisé pour le paiement
-              </label>
-              <input
-                type="tel"
-                inputMode="tel"
-                placeholder="6XXXXXXXX"
-                value={paymentPhone}
-                onChange={(e) => setPaymentPhone(e.target.value)}
-                className="w-full rounded-xl border border-ink-700 bg-ink-900 px-4 py-3 text-base text-white placeholder:text-ink-700 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-              />
-            </div>
-
-            {(localError || submitError) && (
-              <p className="text-sm text-red-400">{localError ?? submitError}</p>
-            )}
-
-            <button
-              onClick={handleConfirm}
-              disabled={isSubmitting}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-success-500 py-4 text-base font-semibold text-white shadow-sm disabled:opacity-60"
-            >
-              💬 {isSubmitting ? 'Envoi...' : 'Confirmer sur WhatsApp'}
-            </button>
-
-            <p className="text-center text-xs text-ink-400">
-              Cela ouvrira WhatsApp avec un message prérempli. Notre équipe
-              vérifiera votre paiement avant de vous donner accès au document.
+        {/* PENDING */}
+        {step === 'pending' && currentOrder && (
+          <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
+            <h2 style={{ fontSize: '1.3rem', color: '#4CC9F0', marginBottom: '0.5rem' }}>Vérification du paiement en cours...</h2>
+            <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1.5rem' }}>
+              Dès confirmation de votre dépôt, le bouton de téléchargement s'activera automatiquement ici.
             </p>
           </div>
         )}
-      </div>
+
+        {/* TELECHARGEMENT */}
+        {step === 'success' && (selectedDoc || currentOrder) && (
+          <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
+            <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0', marginBottom: '0.5rem' }}>Paiement Confirmé !</h2>
+            <button onClick={generatePDF} disabled={isGeneratingPDF} style={{ width: '100%', backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1rem' }}>
+              {isGeneratingPDF ? 'Téléchargement...' : '⬇️ TÉLÉCHARGER MON PDF'}
+            </button>
+            <button onClick={() => setStep('home')} style={{ width: '100%', backgroundColor: '#0B132B', color: '#8D99AE', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer' }}>🏠 Créer un autre document</button>
+          </div>
+        )}
+
+        {/* LOGIN ADMIN */}
+        {step === 'admin_login' && (
+          <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+            <h2 style={{ fontSize: '1.2rem', color: '#F72585', marginBottom: '1rem' }}>🔒 Espace Administration</h2>
+            <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <input type="password" value={adminPinInput} onChange={(e) => setAdminPinInput(e.target.value)} placeholder="PIN (1234)" style={inputStyle} />
+              {adminPinError && <p style={{ color: '#E63946', fontSize: '0.8rem', margin: 0 }}>Code PIN incorrect.</p>}
+              <button type="submit" style={{ backgroundColor: '#F72585', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Se connecter</button>
+            </form>
+          </div>
+        )}
+
+        {/* DASHBOARD ADMIN */}
+        {step === 'admin_dashboard' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ fontSize: '1.2rem', color: '#F72585', margin: 0 }}>📊 Suivi des Paiements (Supabase)</h2>
+              <button onClick={() => setStep('home')} style={{ backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>Quitter</button>
+            </div>
+            {orders.length === 0 ? (
+              <p style={{ color: '#8D99AE', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande enregistrée.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {orders.map((ord) => (
+                  <div key={ord.id} style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '10px', border: '1px solid #3A506B' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontWeight: 'bold', color: '#4CC9F0' }}>{ord.id}</span>
+                      <span style={{ color: ord.status === 'APPROVED' ? '#25D366' : '#F72585', fontWeight: 'bold' }}>{ord.status}</span>
+                    </div>
+                    <p style={{ fontSize: '0.85rem', margin: '0.5rem 0' }}>{ord.doc_title} - {ord.price} ({ord.client_phone})</p>
+                    {ord.status === 'PENDING' && (
+                      <button onClick={() => handleApproveOrder(ord.id)} style={{ backgroundColor: '#25D366', color: '#FFF', border: 'none', padding: '0.5rem', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', width: '100%' }}>✅ Valider le paiement</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CONTAINER DE CAPTURE PDF CACHÉ VISUELLEMENT MAIS PRÉSENT DANS LE DOM */}
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '794px', zIndex: -9999, opacity: 0, pointerEvents: 'none' }}>
+          <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFF', color: '#111', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
+            <div style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: currentOrder?.generated_body || generatedBody }} />
+          </div>
+        </div>
+
+      </main>
     </div>
   );
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDING_PAYMENT: 'En attente de paiement',
-  PAYMENT_REPORTED: 'Paiement signalé',
-  PAYMENT_VERIFICATION: 'Votre paiement est en cours de vérification.',
-  PAID: 'Paiement confirmé — préparation de votre document...',
-  PAYMENT_REJECTED: "Votre paiement n'a pas encore pu être confirmé. Veuillez nous contacter sur WhatsApp.",
-  PDF_GENERATED: 'Votre document est prêt.',
-  COMPLETED: 'Votre document est prêt.',
-  CANCELLED: 'Cette commande a été annulée.',
-  EXPIRED: 'Cette commande a expiré.',
-};
-
-function PendingView({
-  orderNumber,
-  documentName,
-  amount,
-  currency,
-  status,
-}: {
-  orderNumber: string;
-  documentName: string;
-  amount: number;
-  currency: string;
-  status: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-ink-700 bg-ink-800 p-6 text-center">
-      <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-ink-900 border-t-brand-500" />
-
-      <h2 className="text-lg font-bold text-brand-500">Vérification du paiement en cours...</h2>
-      <p className="mt-2 text-sm text-ink-400">
-        Votre demande a bien été transmise. Cette page se mettra à jour
-        automatiquement dès que votre paiement sera confirmé par notre équipe.
-      </p>
-
-      <div className="mt-5 rounded-xl bg-ink-900 p-4 text-left text-sm">
-        <p className="text-ink-400">
-          Référence : <span className="font-mono font-medium text-white">{orderNumber}</span>
-        </p>
-        <p className="mt-1 text-ink-400">
-          Document : <span className="font-medium text-white">{documentName}</span>
-        </p>
-        <p className="mt-1 text-ink-400">
-          Montant : <span className="font-medium text-brand-500">{formatPrice(amount, currency)}</span>
-        </p>
-        <p className="mt-2 text-xs text-ink-400">{STATUS_LABELS[status] ?? status}</p>
-      </div>
-    </div>
-  );
-}
-
-function SuccessView({
-  orderNumber,
-  downloadUrl,
-  onReset,
-}: {
-  orderNumber: string;
-  downloadUrl: string | null;
-  onReset: () => void;
-}) {
-  return (
-    <div className="rounded-2xl border border-ink-700 bg-ink-800 p-6 text-center">
-      <div className="text-4xl">🎉</div>
-      <h2 className="mt-2 text-lg font-bold text-success-500">Paiement confirmé !</h2>
-      <p className="mt-2 text-sm text-ink-400">
-        Votre document est prêt. Référence : <span className="font-mono text-white">{orderNumber}</span>
-      </p>
-
-      {downloadUrl ? (
-        <a
-          href={downloadUrl}
-          className="mt-6 block w-full rounded-xl bg-brand-500 py-4 text-center text-base font-semibold text-white shadow-sm active:bg-brand-600"
-        >
-          ⬇ Télécharger mon document
-        </a>
-      ) : (
-        <p className="mt-6 text-sm text-ink-400">Préparation du lien de téléchargement...</p>
-      )}
-
-      <button
-        onClick={onReset}
-        className="mt-4 w-full rounded-xl border border-ink-700 py-3 text-sm font-medium text-white"
-      >
-        🏠 Créer un autre document
-      </button>
-    </div>
-  );
-}
-ENDOFFILE
-echo "Fichier écrit"
