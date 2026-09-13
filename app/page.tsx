@@ -211,6 +211,7 @@ export default function Home() {
   const [step, setStep] = useState<'home' | 'form' | 'review' | 'preview' | 'payment' | 'success'>('home');
   const [selectedDoc, setSelectedDoc] = useState<DocumentConfig | null>(null);
   const [formStep, setFormStep] = useState(1);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
@@ -225,10 +226,29 @@ export default function Home() {
     setFormData({});
     setGeneratedBody('');
     setStep('form');
+    setIsMenuOpen(false);
   };
 
   const handleInputChange = (fieldId: string, value: string) => {
     setFormData(prev => ({ ...prev, [fieldId]: value }));
+  };
+
+  const handleBack = () => {
+    if (step === 'form') {
+      if (formStep > 1) {
+        setFormStep(formStep - 1);
+      } else {
+        setStep('home');
+      }
+    } else if (step === 'review') {
+      setStep('form');
+    } else if (step === 'preview') {
+      setStep('review');
+    } else if (step === 'payment') {
+      setStep('preview');
+    } else if (step === 'success') {
+      setStep('home');
+    }
   };
 
   const handleProcessDocument = async () => {
@@ -236,7 +256,6 @@ export default function Home() {
     let content = '';
     const id = selectedDoc?.id;
 
-    // 1. CONTRAT DE BAIL
     if (id === 'contrat_bail') {
       content = `
         <h2 style="text-align: center; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px;">CONTRAT DE BAIL À USAGE D'HABITATION</h2>
@@ -254,9 +273,7 @@ export default function Home() {
           <div><strong>Le Locataire</strong><br/><br/><i>(Signature)</i></div>
         </div>
       `;
-    } 
-    // 2. QUITTANCE DE LOYER
-    else if (id === 'quittance_loyer') {
+    } else if (id === 'quittance_loyer') {
       content = `
         <h2 style="text-align: center; text-transform: uppercase;">QUITTANCE DE LOYER</h2>
         <p style="text-align: right;"><strong>Période :</strong> ${formData.periode || ''}</p>
@@ -269,9 +286,7 @@ export default function Home() {
           <strong>Le Bailleur / Gestionnaire</strong><br/><br/><i>(Signature & Cachet)</i>
         </div>
       `;
-    }
-    // 3. REÇU DE LOYER
-    else if (id === 'recu_loyer') {
+    } else if (id === 'recu_loyer') {
       content = `
         <h2 style="text-align: center; text-transform: uppercase;">REÇU DE PAIEMENT DE LOYER</h2>
         <p>Reçu de M./Mme <strong>${formData.payeur_nom || ''}</strong></p>
@@ -284,9 +299,7 @@ export default function Home() {
           <div><strong>Le Bénéficiaire (${formData.receveur_nom || ''})</strong><br/><br/><i>(Signature)</i></div>
         </div>
       `;
-    }
-    // 4. ATTESTATION LOCATIVE / HÉBERGEMENT
-    else if (id === 'attestation_location') {
+    } else if (id === 'attestation_location') {
       content = `
         <h2 style="text-align: center; text-transform: uppercase;">${(formData.attestation_type || "ATTESTATION").toUpperCase()}</h2>
         <br/>
@@ -299,9 +312,7 @@ export default function Home() {
           <strong>Le Déclarant</strong><br/><i>(Signature)</i>
         </div>
       `;
-    }
-    // 5. FACTURE SIMPLE / PROFORMA / REÇU DE VENTE
-    else if (id === 'facture_simple' || id === 'facture_proforma' || id === 'recu_vente') {
+    } else if (id === 'facture_simple' || id === 'facture_proforma' || id === 'recu_vente') {
       const isProforma = id === 'facture_proforma';
       const isRecu = id === 'recu_vente';
       const title = isProforma ? 'FACTURE PROFORMA' : isRecu ? 'REÇU DE VENTE' : 'FACTURE';
@@ -338,9 +349,7 @@ export default function Home() {
           <strong>La Direction / Le Vendeur</strong><br/><br/><i>(Signature)</i>
         </div>
       `;
-    }
-    // 6. BON DE COMMANDE
-    else if (id === 'bon_commande') {
+    } else if (id === 'bon_commande') {
       content = `
         <h2 style="text-align: center; text-transform: uppercase;">BON DE COMMANDE</h2>
         <p><strong>Acheteur :</strong> ${formData.acheteur_nom || ''}</p>
@@ -357,9 +366,7 @@ export default function Home() {
           <div><strong>Confirmation Fournisseur</strong><br/><br/><i>(Signature)</i></div>
         </div>
       `;
-    }
-    // 7. CV PROFESSIONNEL
-    else if (id === 'cv') {
+    } else if (id === 'cv') {
       content = `
         <div style="border-bottom: 3px solid #4361EE; padding-bottom: 10px; margin-bottom: 20px;">
           <h1 style="margin: 0; color: #111; text-transform: uppercase;">${formData.name || ''}</h1>
@@ -373,9 +380,7 @@ export default function Home() {
         <h3 style="background: #f0f0f0; padding: 5px 10px; border-left: 4px solid #4361EE; margin-top: 20px;">FORMATIONS & DIPLÔMES</h3>
         <p style="white-space: pre-wrap; line-height: 1.6;">${formData.education || 'Non renseigné'}</p>
       `;
-    }
-    // 8. LETTRE DE MOTIVATION
-    else if (id === 'lettre') {
+    } else if (id === 'lettre') {
       content = `
         <p><strong>${formData.name || ''}</strong><br/>Tél : ${formData.phone || ''}<br/>${formData.address || ''}</p>
         <p style="text-align: right;"><strong>À l'attention du Recruteur</strong><br/>${formData.recipient || 'L\'Entreprise'}</p>
@@ -391,9 +396,7 @@ export default function Home() {
         <br/>
         <p style="text-align: right;"><strong>${formData.name || ''}</strong></p>
       `;
-    }
-    // 9. PACKS (EMPLOI / ENTREPRENEUR)
-    else {
+    } else {
       content = `
         <h2 style="text-align: center; text-transform: uppercase;">${selectedDoc?.title || 'DOCUMENT'}</h2>
         <hr/>
@@ -446,17 +449,109 @@ export default function Home() {
   };
 
   return (
-    <div style={{ backgroundColor: '#0B132B', color: '#FFFFFF', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
+    <div style={{ backgroundColor: '#0B132B', color: '#FFFFFF', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', position: 'relative' }}>
       
-      {/* EN-TÊTE */}
-      <header style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1C2541' }}>
+      {/* EN-TÊTE FIXE AVEC BOUTON HAMBURGER / CROIX */}
+      <header style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1C2541', position: 'sticky', top: 0, backgroundColor: '#0B132B', zIndex: 100 }}>
         <div>
-          <span style={{ fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '1px', color: '#4CC9F0', cursor: 'pointer' }} onClick={() => setStep('home')}>DOCEXPRESS</span>
+          <span style={{ fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '1px', color: '#4CC9F0', cursor: 'pointer' }} onClick={() => { setStep('home'); setIsMenuOpen(false); }}>DOCEXPRESS</span>
           <p style={{ fontSize: '0.75rem', color: '#8D99AE', margin: 0 }}>Vos documents. Simplement.</p>
         </div>
+
+        {/* BOUTON MENU ANIMÉ (3 BARRES -> CROIX) */}
+        <button 
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          aria-label="Menu"
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '8px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-around',
+            width: '32px',
+            height: '32px',
+            zIndex: 101
+          }}>
+          <span style={{
+            width: '100%',
+            height: '3px',
+            backgroundColor: '#4CC9F0',
+            borderRadius: '2px',
+            transition: 'all 0.3s ease',
+            transform: isMenuOpen ? 'rotate(45deg) translate(6px, 6px)' : 'rotate(0)'
+          }} />
+          <span style={{
+            width: '100%',
+            height: '3px',
+            backgroundColor: '#4CC9F0',
+            borderRadius: '2px',
+            transition: 'all 0.3s ease',
+            opacity: isMenuOpen ? 0 : 1
+          }} />
+          <span style={{
+            width: '100%',
+            height: '3px',
+            backgroundColor: '#4CC9F0',
+            borderRadius: '2px',
+            transition: 'all 0.3s ease',
+            transform: isMenuOpen ? 'rotate(-45deg) translate(6px, -6px)' : 'rotate(0)'
+          }} />
+        </button>
       </header>
 
+      {/* TIROIR DÉROULANT (MENU OVERLAY) */}
+      {isMenuOpen && (
+        <div style={{
+          position: 'fixed',
+          top: '60px',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(11, 19, 43, 0.98)',
+          zIndex: 99,
+          padding: '1.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1.5rem',
+          overflowY: 'auto'
+        }}>
+          <button 
+            onClick={() => { setStep('home'); setIsMenuOpen(false); }}
+            style={{ backgroundColor: '#1C2541', color: '#FFF', border: '1px solid #3A506B', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', textAlign: 'left', cursor: 'pointer' }}>
+            🏠 Page d'accueil
+          </button>
+
+          <div>
+            <h3 style={{ fontSize: '0.9rem', color: '#8D99AE', textTransform: 'uppercase', marginBottom: '0.8rem' }}>Tous les documents</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {Object.values(DOCUMENTS_CONFIG).map((doc) => (
+                <div 
+                  key={doc.id}
+                  onClick={() => handleSelectDoc(doc)}
+                  style={{ backgroundColor: '#0B132B', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid #1C2541', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.95rem', color: '#FFF' }}>{doc.title}</span>
+                  <span style={{ fontSize: '0.8rem', color: '#4CC9F0', fontWeight: 'bold' }}>{doc.price}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <main style={{ maxWidth: '600px', margin: '0 auto', padding: '1.5rem' }}>
+
+        {/* BARRE DE RETOUR À LA PAGE PRÉCÉDENTE */}
+        {step !== 'home' && (
+          <div style={{ marginBottom: '1rem' }}>
+            <button 
+              onClick={handleBack}
+              style={{ background: 'none', border: 'none', color: '#8D99AE', fontSize: '0.9rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              ⬅️ Page précédente
+            </button>
+          </div>
+        )}
 
         {/* 1. ACCUEIL */}
         {step === 'home' && (
@@ -547,11 +642,9 @@ export default function Home() {
             </div>
 
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-              {formStep > 1 && (
-                <button onClick={() => setFormStep(formStep - 1)} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  Retour
-                </button>
-              )}
+              <button onClick={handleBack} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                Retour
+              </button>
               
               {formStep < 3 ? (
                 <button onClick={() => setFormStep(formStep + 1)} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
@@ -644,7 +737,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* 6. TÉLÉCHARGEMENT FINAL & RETOUR */}
+        {/* 6. TÉLÉCHARGEMENT FINAL */}
         {step === 'success' && selectedDoc && (
           <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
             <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
