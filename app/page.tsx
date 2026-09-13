@@ -25,22 +25,24 @@ export default function Home() {
     name: '',
     phone: '',
     address: '',
-    details: '', // Utilisé pour description logement, expériences CV, articles facture, etc.
-    amount: '',  // Loyer, montant facture, prétention salariale, etc.
-    recipient: '', // Pour lettre ou facture (Destinataire / Client)
+    email: '',
+    recipient: '',
+    recipientAddress: '',
+    details: '',
+    amount: '',
   });
 
   const popularDocs: DocType[] = [
-    { id: 'bail', title: 'Contrat de bail', category: 'IMMOBILIER', price: '1 000 FCFA', badge: 'POPULAIRE', desc: 'Créez facilement votre contrat de bail personnalisé.' },
-    { id: 'cv', title: 'CV professionnel', category: 'CARRIÈRE', price: '1 000 FCFA', badge: 'POPULAIRE', desc: 'Format moderne optimisé pour le marché local.' },
-    { id: 'facture', title: 'Facture proforma', category: 'FINANCE', price: '1 000 FCFA', badge: 'POPULAIRE', desc: 'Facture conforme pour vos clients et prestations.' },
-    { id: 'lettre', title: 'Lettre de motivation', category: 'CARRIÈRE', price: '500 FCFA', badge: '', desc: 'Rédigée sur mesure selon votre profil.' },
+    { id: 'bail', title: 'Contrat de bail', category: 'IMMOBILIER', price: '1 000 FCFA', badge: 'POPULAIRE', desc: 'Contrat de bail à usage d’habitation formalisé.' },
+    { id: 'lettre', title: 'Lettre de motivation', category: 'CARRIÈRE', price: '500 FCFA', badge: 'POPULAIRE', desc: 'Rédigée sur mesure et au format professionnel.' },
+    { id: 'facture', title: 'Facture proforma', category: 'FINANCE', price: '1 000 FCFA', badge: 'POPULAIRE', desc: 'Facture proforma détaillée avec calcul automatique.' },
+    { id: 'cv', title: 'CV professionnel', category: 'CARRIÈRE', price: '1 000 FCFA', badge: '', desc: 'Format moderne optimisé pour le marché.' },
   ];
 
   const handleSelectDoc = (doc: DocType) => {
     setSelectedDoc(doc);
     setFormStep(1);
-    setFormData({ name: '', phone: '', address: '', details: '', amount: '', recipient: '' });
+    setFormData({ name: '', phone: '', address: '', email: '', recipient: '', recipientAddress: '', details: '', amount: '' });
     setStep('form');
   };
 
@@ -70,7 +72,6 @@ export default function Home() {
     }
   };
 
-  // Styles communs pour les inputs
   const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: '0.8rem',
@@ -84,7 +85,7 @@ export default function Home() {
   return (
     <div style={{ backgroundColor: '#0B132B', color: '#FFFFFF', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
       
-      {/* --- EN-TÊTE --- */}
+      {/* EN-TÊTE */}
       <header style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1C2541' }}>
         <div>
           <span style={{ fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '1px', color: '#4CC9F0', cursor: 'pointer' }} onClick={() => setStep('home')}>DOCEXPRESS</span>
@@ -98,7 +99,7 @@ export default function Home() {
 
       <main style={{ maxWidth: '600px', margin: '0 auto', padding: '1.5rem' }}>
 
-        {/* ================= 1. ACCUEIL ================= */}
+        {/* 1. ACCUEIL */}
         {step === 'home' && (
           <div>
             <section style={{ textAlign: 'center', padding: '2rem 0' }}>
@@ -109,13 +110,10 @@ export default function Home() {
                 Créez vos contrats, factures, CV et lettres directement depuis votre téléphone.
               </p>
               <button 
-                onClick={() => handleSelectDoc(popularDocs[0])}
+                onClick={() => handleSelectDoc(popularDocs[1])}
                 style={{ backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.9rem 1.8rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', width: '100%' }}>
-                Créer un contrat de bail →
+                Créer une lettre de motivation →
               </button>
-              <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#4CC9F0' }}>
-                ⚡ Rapide · 📱 100% mobile · 🇨🇲 Adapté au Cameroun
-              </div>
             </section>
 
             <section style={{ marginTop: '2rem' }}>
@@ -147,88 +145,86 @@ export default function Home() {
           </div>
         )}
 
-        {/* ================= 2. FORMULAIRE DYNAMIQUE ================= */}
+        {/* 2. FORMULAIRE */}
         {step === 'form' && selectedDoc && (
           <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
             <div style={{ marginBottom: '1.5rem' }}>
               <span style={{ fontSize: '0.8rem', color: '#4CC9F0' }}>Créons votre {selectedDoc.title}</span>
-              <h2 style={{ fontSize: '1.2rem', margin: '0.2rem 0 0.8rem 0' }}>Étape {formStep} sur 4</h2>
+              <h2 style={{ fontSize: '1.2rem', margin: '0.2rem 0 0.8rem 0' }}>Étape {formStep} sur 3</h2>
               <div style={{ backgroundColor: '#0B132B', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ backgroundColor: '#4361EE', width: `${(formStep / 4) * 100}%`, height: '100%', transition: 'width 0.3s' }}></div>
+                <div style={{ backgroundColor: '#4361EE', width: `${(formStep / 3) * 100}%`, height: '100%', transition: 'width 0.3s' }}></div>
               </div>
             </div>
 
-            {/* ÉTAPE 1 : Identité */}
+            {/* Étape 1 : Expéditeur */}
             {formStep === 1 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <h3 style={{ fontSize: '1rem' }}>👤 Informations personnelles</h3>
+                <h3 style={{ fontSize: '1rem' }}>👤 Vos coordonnées</h3>
                 <input type="text" placeholder="Nom et Prénom complets" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} style={inputStyle} />
-                <input type="text" placeholder="Numéro de Téléphone (Ex: 6XX XX XX XX)" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} style={inputStyle} />
-                <input type="text" placeholder="Adresse / Ville (Ex: Yaoundé, Bastos)" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} style={inputStyle} />
+                <input type="text" placeholder="Numéro de téléphone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} style={inputStyle} />
+                <input type="email" placeholder="Adresse email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} style={inputStyle} />
+                <input type="text" placeholder="Ville / Adresse" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} style={inputStyle} />
               </div>
             )}
 
-            {/* ÉTAPE 2 : Contenu spécifique */}
+            {/* Étape 2 : Destinataire / Poste */}
             {formStep === 2 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <h3 style={{ fontSize: '1rem' }}>📝 Détails du document</h3>
+                <h3 style={{ fontSize: '1rem' }}>🏢 Contexte et Destinataire</h3>
                 
+                {selectedDoc.id === 'lettre' && (
+                  <>
+                    <input type="text" placeholder="Intitulé du poste recherché (Ex: Comptable)" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} style={inputStyle} />
+                    <input type="text" placeholder="Nom de l'entreprise ou 'Le Directeur'" value={formData.recipient} onChange={(e) => setFormData({ ...formData, recipient: e.target.value })} style={inputStyle} />
+                    <input type="text" placeholder="Ville / Adresse de l'entreprise" value={formData.recipientAddress} onChange={(e) => setFormData({ ...formData, recipientAddress: e.target.value })} style={inputStyle} />
+                  </>
+                )}
+
                 {selectedDoc.id === 'bail' && (
-                  <textarea placeholder="Description du logement (Ex: Appartement de 3 chambres, salon, cuisine situé au quartier Omnisports)" value={formData.details} onChange={(e) => setFormData({ ...formData, details: e.target.value })} style={{ ...inputStyle, minHeight: '120px' }} />
+                  <>
+                    <input type="text" placeholder="Nom complet du Locataire" value={formData.recipient} onChange={(e) => setFormData({ ...formData, recipient: e.target.value })} style={inputStyle} />
+                    <input type="number" placeholder="Loyer mensuel (FCFA)" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} style={inputStyle} />
+                  </>
                 )}
 
                 {selectedDoc.id === 'facture' && (
                   <>
-                    <input type="text" placeholder="Nom du Client / Entreprise destinataire" value={formData.recipient} onChange={(e) => setFormData({ ...formData, recipient: e.target.value })} style={inputStyle} />
-                    <textarea placeholder="Liste des services ou produits (Ex: 1x Conception site Web, 2x Cartes de visite)" value={formData.details} onChange={(e) => setFormData({ ...formData, details: e.target.value })} style={{ ...inputStyle, minHeight: '100px' }} />
+                    <input type="text" placeholder="Nom du Client" value={formData.recipient} onChange={(e) => setFormData({ ...formData, recipient: e.target.value })} style={inputStyle} />
+                    <input type="number" placeholder="Montant total (FCFA)" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} style={inputStyle} />
                   </>
                 )}
 
                 {selectedDoc.id === 'cv' && (
-                  <textarea placeholder="Parcours, expériences et diplômes importants" value={formData.details} onChange={(e) => setFormData({ ...formData, details: e.target.value })} style={{ ...inputStyle, minHeight: '120px' }} />
-                )}
-
-                {selectedDoc.id === 'lettre' && (
-                  <>
-                    <input type="text" placeholder="Poste visé et Entreprise destinataire" value={formData.recipient} onChange={(e) => setFormData({ ...formData, recipient: e.target.value })} style={inputStyle} />
-                    <textarea placeholder="Rédigez les motivations principales ou points forts" value={formData.details} onChange={(e) => setFormData({ ...formData, details: e.target.value })} style={{ ...inputStyle, minHeight: '120px' }} />
-                  </>
+                  <input type="text" placeholder="Titre professionnel" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} style={inputStyle} />
                 )}
               </div>
             )}
 
-            {/* ÉTAPE 3 : Tarifs / Montants */}
+            {/* Étape 3 : Informations spécifiques */}
             {formStep === 3 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <h3 style={{ fontSize: '1rem' }}>💰 Informations financières / compléments</h3>
+                <h3 style={{ fontSize: '1rem' }}>✍️ Éléments clés à intégrer</h3>
                 
-                {selectedDoc.id === 'bail' && (
-                  <input type="number" placeholder="Loyer mensuel en FCFA (Ex: 150000)" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} style={inputStyle} />
-                )}
-                {selectedDoc.id === 'facture' && (
-                  <input type="number" placeholder="Montant Total HT/TTC en FCFA" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} style={inputStyle} />
-                )}
-                {selectedDoc.id === 'cv' && (
-                  <input type="text" placeholder="Titre professionnel (Ex: Développeur Web / Comptable)" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} style={inputStyle} />
-                )}
                 {selectedDoc.id === 'lettre' && (
-                  <input type="text" placeholder="Prétention salariale ou date de disponibilité" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} style={inputStyle} />
+                  <textarea 
+                    placeholder="Résumez vos compétences et votre expérience (Ex: 3 ans d'expérience en comptabilité, maîtrise de Sage, dynamique et rigoureux)" 
+                    value={formData.details} 
+                    onChange={(e) => setFormData({ ...formData, details: e.target.value })} 
+                    style={{ ...inputStyle, minHeight: '140px' }} 
+                  />
                 )}
-              </div>
-            )}
 
-            {/* ÉTAPE 4 : Récapitulatif */}
-            {formStep === 4 && (
-              <div>
-                <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>📋 Récapitulatif</h3>
-                <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '8px', fontSize: '0.85rem', lineHeight: 1.6 }}>
-                  <p><strong>Nom :</strong> {formData.name || 'Non renseigné'}</p>
-                  <p><strong>Téléphone :</strong> {formData.phone || 'Non renseigné'}</p>
-                  <p><strong>Adresse :</strong> {formData.address || 'Non renseigné'}</p>
-                  {formData.recipient && <p><strong>Destinataire :</strong> {formData.recipient}</p>}
-                  <p><strong>Détails :</strong> {formData.details || 'Non renseigné'}</p>
-                  <p><strong>Montant / Titre :</strong> {formData.amount || 'Non renseigné'}</p>
-                </div>
+                {selectedDoc.id === 'bail' && (
+                  <textarea placeholder="Description précise des locaux (Ex: Appartement 3 chambres situé au 2ème étage à Bastos)" value={formData.details} onChange={(e) => setFormData({ ...formData, details: e.target.value })} style={{ ...inputStyle, minHeight: '120px' }} />
+                )}
+
+                {selectedDoc.id === 'facture' && (
+                  <textarea placeholder="Détails des prestations / marchandises" value={formData.details} onChange={(e) => setFormData({ ...formData, details: e.target.value })} style={{ ...inputStyle, minHeight: '120px' }} />
+                )}
+
+                {selectedDoc.id === 'cv' && (
+                  <textarea placeholder="Parcours et formations" value={formData.details} onChange={(e) => setFormData({ ...formData, details: e.target.value })} style={{ ...inputStyle, minHeight: '120px' }} />
+                )}
               </div>
             )}
 
@@ -238,64 +234,28 @@ export default function Home() {
                   Retour
                 </button>
               )}
-              <button onClick={() => formStep < 4 ? setFormStep(formStep + 1) : setStep('preview')} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {formStep === 4 ? 'Aperçu du document →' : 'Continuer →'}
+              <button onClick={() => formStep < 3 ? setFormStep(formStep + 1) : setStep('preview')} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                {formStep === 3 ? 'Aperçu du document →' : 'Continuer →'}
               </button>
             </div>
           </div>
         )}
 
-        {/* ================= 3. APERÇU SPÉCIMEN ================= */}
+        {/* 3. APERÇU SPÉCIMEN */}
         {step === 'preview' && selectedDoc && (
           <div>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', textAlign: 'center' }}>Votre document est prêt</h2>
-            
-            <div style={{ backgroundColor: '#FFF', color: '#000', padding: '1.5rem', borderRadius: '8px', position: 'relative', overflow: 'hidden', minHeight: '320px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', textAlign: 'center' }}>Votre document est généré</h2>
+            <div style={{ backgroundColor: '#FFF', color: '#000', padding: '1.5rem', borderRadius: '8px', position: 'relative', overflow: 'hidden', minHeight: '300px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}>
               <div style={{ position: 'absolute', top: '40%', left: '10%', transform: 'rotate(-30deg)', fontSize: '3rem', fontWeight: '900', color: 'rgba(230, 57, 70, 0.25)', pointerEvents: 'none' }}>
                 SPÉCIMEN
               </div>
               <h3 style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '0.5rem', fontSize: '1.1rem' }}>{selectedDoc.title.toUpperCase()}</h3>
-              
-              <div style={{ fontSize: '0.75rem', marginTop: '1rem', lineHeight: '1.6' }}>
-                {selectedDoc.id === 'bail' && (
-                  <>
-                    <p><strong>ENTRE LES SOUSSIGNÉS :</strong> M./Mme <u>{formData.name || '................'}</u></p>
-                    <p><strong>DÉSIGNATION :</strong> <u>{formData.details || '................'}</u></p>
-                    <p><strong>LOYER MENSUEL :</strong> <u>{formData.amount || '........'} FCFA</u></p>
-                  </>
-                )}
-
-                {selectedDoc.id === 'facture' && (
-                  <>
-                    <p><strong>ÉMETTEUR :</strong> {formData.name || '................'} ({formData.phone})</p>
-                    <p><strong>CLIENT :</strong> {formData.recipient || '................'}</p>
-                    <p><strong>PRESTATIONS :</strong> {formData.details || '................'}</p>
-                    <p><strong>TOTAL :</strong> {formData.amount || '........'} FCFA</p>
-                  </>
-                )}
-
-                {selectedDoc.id === 'cv' && (
-                  <>
-                    <h4 style={{ margin: 0 }}>{formData.name || 'Nom complet'}</h4>
-                    <p style={{ margin: 0 }}>{formData.amount || 'Titre du poste'} | {formData.phone}</p>
-                    <p style={{ marginTop: '0.5rem' }}><strong>PARCOURS & EXPÉRIENCES :</strong></p>
-                    <p>{formData.details || 'Détails des expériences...'}</p>
-                  </>
-                )}
-
-                {selectedDoc.id === 'lettre' && (
-                  <>
-                    <p><strong>DE :</strong> {formData.name || '................'}</p>
-                    <p><strong>À L'ATTENTION DE :</strong> {formData.recipient || '................'}</p>
-                    <p style={{ marginTop: '0.5rem' }}>{formData.details || 'Contenu de la lettre...'}</p>
-                  </>
-                )}
-              </div>
+              <p style={{ fontSize: '0.85rem', marginTop: '1rem' }}><strong>Expéditeur :</strong> {formData.name}</p>
+              <p style={{ fontSize: '0.85rem' }}><strong>Destinataire :</strong> {formData.recipient || 'N/A'}</p>
+              <p style={{ fontSize: '0.85rem' }}><strong>Objet :</strong> {selectedDoc.id === 'lettre' ? `Candidature au poste de ${formData.amount}` : selectedDoc.title}</p>
             </div>
 
-            <p style={{ textAlign: 'center', fontSize: '0.85rem', color: '#8D99AE', margin: '1rem 0' }}>Vérifiez vos informations avant de continuer.</p>
-
-            <div style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
               <div>
                 <span style={{ fontSize: '0.9rem', display: 'block' }}>{selectedDoc.title}</span>
                 <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#4CC9F0' }}>{selectedDoc.price}</span>
@@ -307,7 +267,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* ================= 4. PAIEMENT ================= */}
+        {/* 4. PAIEMENT */}
         {step === 'payment' && selectedDoc && (
           <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
             <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Finaliser votre commande</h2>
@@ -338,91 +298,128 @@ export default function Home() {
           </div>
         )}
 
-        {/* ================= 5. SUCCÈS & TÉLÉCHARGEMENT PDF ================= */}
+        {/* 5. SUCCÈS & RENDER PDF EN BONNE ET DUE FORME */}
         {step === 'success' && selectedDoc && (
           <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
             <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
-            <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0', marginBottom: '0.5rem' }}>Votre document est prêt !</h2>
-            <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1.5rem' }}>Votre paiement a été confirmé.</p>
+            <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0', marginBottom: '0.5rem' }}>Votre document est disponible !</h2>
 
-            {/* Document PDF Final HTML (Placé hors de l'écran pour capture propre) */}
+            {/* DOCUMENT GENERATION CONTAINER (CACHÉ POUR LA CAPTURE PDF) */}
             <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-              <div ref={documentRef} style={{ width: '800px', backgroundColor: '#FFF', color: '#000', padding: '3rem', fontFamily: 'serif' }}>
-                <h1 style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '1rem', fontSize: '1.8rem' }}>
-                  {selectedDoc.title.toUpperCase()}
-                </h1>
+              <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFF', color: '#111', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
                 
-                <div style={{ marginTop: '2rem', lineHeight: '1.8', fontSize: '1.1rem' }}>
-                  
-                  {/* BAIL */}
-                  {selectedDoc.id === 'bail' && (
-                    <>
-                      <p><strong>ENTRE LES SOUSSIGNÉS :</strong></p>
-                      <p>M./Mme <strong>{formData.name || '................................'}</strong>, domicilié(e) à <strong>{formData.address || '................'}</strong>, Tél: <strong>{formData.phone || '................'}</strong>.</p>
-                      <p style={{ marginTop: '1.5rem' }}><strong>IL A ÉTÉ CONVENU ET ARRÊTÉ CE QUI SUIT :</strong></p>
-                      <p><strong>Objet :</strong> Le Bailleur donne à bail les locaux ci-après désignés : {formData.details || '................................'}.</p>
-                      <p><strong>Loyer :</strong> Le présent bail est consenti moyennant un loyer mensuel de <strong>{formData.amount || '........'} FCFA</strong>.</p>
-                    </>
-                  )}
-
-                  {/* FACTURE PROFORMA */}
-                  {selectedDoc.id === 'facture' && (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #ccc', paddingBottom: '1rem' }}>
-                        <div>
-                          <p><strong>ÉMETTEUR :</strong> {formData.name}</p>
-                          <p>Tél : {formData.phone}</p>
-                          <p>Adresse : {formData.address}</p>
-                        </div>
-                        <div>
-                          <p><strong>CLIENT :</strong> {formData.recipient || 'Nom du client'}</p>
-                          <p>Date : {new Date().toLocaleDateString('fr-FR')}</p>
-                        </div>
+                {/* 📄 CAS 1 : LETTRE DE MOTIVATION EN BONNE ET DUE FORME */}
+                {selectedDoc.id === 'lettre' && (
+                  <div>
+                    {/* En-tête Expéditeur & Destinataire */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3rem' }}>
+                      <div style={{ fontSize: '1rem', lineHeight: '1.5' }}>
+                        <p style={{ fontWeight: 'bold', margin: 0 }}>{formData.name || 'Nom & Prénom'}</p>
+                        <p style={{ margin: 0 }}>{formData.address || 'Adresse / Ville'}</p>
+                        <p style={{ margin: 0 }}>Tél : {formData.phone || '06000000'}</p>
+                        <p style={{ margin: 0 }}>Email : {formData.email || 'email@exemple.com'}</p>
                       </div>
-                      <h3 style={{ marginTop: '2rem' }}>Détails des prestations / produits :</h3>
-                      <p style={{ whiteSpace: 'pre-line', background: '#F9F9F9', padding: '1rem', border: '1px solid #EEE' }}>{formData.details}</p>
-                      <h2 style={{ textAlign: 'right', marginTop: '2rem' }}>TOTAL : {formData.amount} FCFA</h2>
-                    </>
-                  )}
-
-                  {/* CV PROFESSIONNEL */}
-                  {selectedDoc.id === 'cv' && (
-                    <>
-                      <div style={{ borderBottom: '2px solid #333', paddingBottom: '1rem' }}>
-                        <h1 style={{ margin: 0, fontSize: '2rem' }}>{formData.name}</h1>
-                        <h3 style={{ margin: '0.3rem 0', color: '#555' }}>{formData.amount}</h3>
-                        <p style={{ margin: 0 }}>📍 {formData.address} | 📞 {formData.phone}</p>
+                      <div style={{ fontSize: '1rem', lineHeight: '1.5', textAlign: 'right' }}>
+                        <p style={{ fontWeight: 'bold', margin: 0 }}>À l'attention de : {formData.recipient || 'La Direction des Ressources Humaines'}</p>
+                        <p style={{ margin: 0 }}>{formData.recipientAddress || 'Ville'}</p>
                       </div>
-                      <h3 style={{ borderBottom: '1px solid #666', marginTop: '2rem' }}>EXPÉRIENCES & PARCOURS</h3>
-                      <p style={{ whiteSpace: 'pre-line' }}>{formData.details}</p>
-                    </>
-                  )}
-
-                  {/* LETTRE DE MOTIVATION */}
-                  {selectedDoc.id === 'lettre' && (
-                    <>
-                      <p><strong>De :</strong> {formData.name}</p>
-                      <p>Adresse : {formData.address} | Tél : {formData.phone}</p>
-                      <p style={{ marginTop: '1.5rem' }}><strong>À l'attention de :</strong> {formData.recipient}</p>
-                      <p style={{ textAlign: 'right', marginTop: '1rem' }}>Fait le {new Date().toLocaleDateString('fr-FR')}</p>
-                      <p style={{ marginTop: '2rem' }}><strong>Objet :</strong> Candidature</p>
-                      <p style={{ marginTop: '1.5rem', whiteSpace: 'pre-line' }}>{formData.details}</p>
-                      {formData.amount && <p style={{ marginTop: '1.5rem' }}><strong>Disponibilité / Prétentions :</strong> {formData.amount}</p>}
-                    </>
-                  )}
-
-                  {/* SIGNATURES */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4rem' }}>
-                    <div>
-                      <p>Fait le {new Date().toLocaleDateString('fr-FR')}</p>
-                      <p style={{ marginTop: '2rem' }}><strong>Signature de l'émetteur</strong></p>
                     </div>
-                    <div>
-                      <p style={{ marginTop: '3rem' }}><strong>Signature du destinataire</strong></p>
+
+                    <p style={{ textAlign: 'right', marginBottom: '2rem' }}>Fait le {new Date().toLocaleDateString('fr-FR')}</p>
+
+                    <p style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '2rem' }}>
+                      Objet : Candidature au poste de {formData.amount || '................................'}
+                    </p>
+
+                    <div style={{ fontSize: '1.1rem', lineHeight: '1.8', textAlign: 'justify' }}>
+                      <p>Madame, Monsieur,</p>
+
+                      <p>
+                        C'est avec un vif intérêt que je vous adresse ma candidature pour le poste de <strong>{formData.amount || 'professionnel'}</strong> au sein de votre structure.
+                      </p>
+
+                      <p>
+                        Au cours de mon parcours, j'ai développé de solides compétences dans ce domaine. 
+                        {formData.details ? ` Notamment : ${formData.details}.` : " Mon expérience m'a permis d'acquérir une rigueur et une capacité d'adaptation essentielles."}
+                      </p>
+
+                      <p>
+                        Intégrer votre équipe représente pour moi une réelle opportunité de mettre mes compétences au service de vos objectifs stratégiques tout en continuant d'évoluer professionnellement.
+                      </p>
+
+                      <p>
+                        Restant à votre entière disposition pour tout entretien à votre convenance, je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations distinguées.
+                      </p>
+                    </div>
+
+                    <div style={{ marginTop: '4rem', float: 'right', textAlign: 'center' }}>
+                      <p style={{ marginBottom: '3rem' }}><strong>{formData.name}</strong></p>
+                      <p style={{ fontSize: '0.85rem', color: '#666' }}>(Signature)</p>
                     </div>
                   </div>
+                )}
 
-                </div>
+                {/* 📄 CAS 2 : CONTRAT DE BAIL EN BONNE ET DUE FORME */}
+                {selectedDoc.id === 'bail' && (
+                  <div>
+                    <h1 style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '0.5rem', fontSize: '1.6rem' }}>CONTRAT DE BAIL À USAGE D'HABITATION</h1>
+                    
+                    <div style={{ fontSize: '1rem', lineHeight: '1.8', marginTop: '2rem', textAlign: 'justify' }}>
+                      <p><strong>ENTRE LES SOUSSIGNÉS :</strong></p>
+                      <p><strong>Le Bailleur :</strong> M./Mme <strong>{formData.name}</strong>, domicilié(e) à {formData.address}, Tél : {formData.phone}.</p>
+                      <p><strong>Et Le Preneur :</strong> M./Mme <strong>{formData.recipient || '................................'}</strong>.</p>
+
+                      <p style={{ marginTop: '1.5rem' }}><strong>IL A ÉTÉ CONVENU CE QUI SUIT :</strong></p>
+                      <p><strong>Article 1 - Objet :</strong> Le Bailleur donne à bail à loyer au Preneur les locaux désignés ci-après : {formData.details || 'Locaux à usage d habitation'}.</p>
+                      <p><strong>Article 2 - Loyer :</strong> Le présent bail est consenti et accepté moyennant un loyer mensuel de <strong>{formData.amount || '........'} FCFA</strong>, payable d'avance le 05 de chaque mois.</p>
+                      <p><strong>Article 3 - Obligations :</strong> Le Preneur s'engage à maintenir les lieux en bon état et à les utiliser de manière paisible.</p>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4rem' }}>
+                        <div>
+                          <p>Le Bailleur</p>
+                        </div>
+                        <div>
+                          <p>Le Preneur</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 📄 CAS 3 : FACTURE PROFORMA */}
+                {selectedDoc.id === 'facture' && (
+                  <div>
+                    <h1 style={{ textAlign: 'center', fontSize: '1.8rem', marginBottom: '2rem' }}>FACTURE PROFORMA</h1>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
+                      <div>
+                        <p><strong>Émetteur :</strong> {formData.name}</p>
+                        <p>Tél : {formData.phone}</p>
+                      </div>
+                      <div>
+                        <p><strong>Client :</strong> {formData.recipient}</p>
+                        <p>Date : {new Date().toLocaleDateString('fr-FR')}</p>
+                      </div>
+                    </div>
+
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '2rem' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: '#f2f2f2' }}>
+                          <th style={{ border: '1px solid #dddddd', padding: '8px', textAlign: 'left' }}>Description</th>
+                          <th style={{ border: '1px solid #dddddd', padding: '8px', textAlign: 'right' }}>Total (FCFA)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td style={{ border: '1px solid #dddddd', padding: '8px' }}>{formData.details}</td>
+                          <td style={{ border: '1px solid #dddddd', padding: '8px', textAlign: 'right' }}>{formData.amount} FCFA</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <h2 style={{ textAlign: 'right', marginTop: '2rem' }}>Total à payer : {formData.amount} FCFA</h2>
+                  </div>
+                )}
+
               </div>
             </div>
 
@@ -430,10 +427,8 @@ export default function Home() {
               onClick={generatePDF}
               disabled={isGenerating}
               style={{ width: '100%', backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1rem' }}>
-              {isGenerating ? 'Génération en cours...' : '⬇️ TÉLÉCHARGER MON PDF'}
+              {isGenerating ? 'Génération en cours...' : '⬇️ TÉLÉCHARGER LE DOCUMENT REDIGÉ'}
             </button>
-
-            <p style={{ fontSize: '0.75rem', color: '#8D99AE' }}>Conservez votre document dans un endroit sûr.</p>
           </div>
         )}
 
