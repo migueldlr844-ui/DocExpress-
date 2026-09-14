@@ -3,6 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { createClient } from '@supabase/supabase-js';
+
+// --- INITIALISATION SUPABASE ---
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // --- INTERFACES & CONFIGURATION ---
 interface FormField {
@@ -31,6 +37,8 @@ interface Order {
   docTitle: string;
   price: string;
   clientPhone: string;
+  senderPhone?: string;
+  transactionRef?: string;
   status: 'PENDING' | 'APPROVED';
   createdAt: string;
   formData: Record<string, string>;
@@ -243,7 +251,11 @@ export default function Home() {
   const [generatedBody, setGeneratedBody] = useState<string>('');
   const [formData, setFormData] = useState<Record<string, string>>({});
 
-  // --- ÉTAT DU PAIEMENT & COMMANDES ---
+  // --- ÉTAT DU PAIEMENT & COMMANDES (SUPABASE & ORANGE MONEY) ---
+  const [senderPhoneInput, setSenderPhoneInput] = useState('');
+  const [transactionRefInput, setTransactionRefInput] = useState('');
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [adminPinInput, setAdminPinInput] = useState('');
@@ -260,47 +272,69 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Synchronisation des commandes depuis le localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('docexpress_orders');
-    if (saved) {
-      try {
-        setOrders(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  }, []);
+  // Charger les commandes depuis Supabase pour l'administration
+  const fetchSupabaseOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  // Polling pour l'écran client en attente de validation
+      if (data && !error) {
+        const mappedOrders: Order[] = data.map((item: any) => ({
+          id: item.id,
+          docTitle: item.doc_title || 'Document',
+          price: `${item.amount || 0} FCFA`,
+          clientPhone: item.sender_phone || 'Non renseigné',
+          senderPhone: item.sender_phone,
+          transactionRef: item.transaction_ref,
+          status: item.status === 'completed' ? 'APPROVED' : 'PENDING',
+          createdAt: new Date(item.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          formData: item.form_data || {},
+          generatedBody: item.generated_body || ''
+        }));
+        setOrders(mappedOrders);
+      }
+    } catch (err) {
+      console.error('Erreur chargement Supabase:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchSupabaseOrders();
+  }, [step]);
+
+  // Synchronisation continue / Polling pour l'écran client en attente de validation
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (step === 'pending' && currentOrder) {
-      interval = setInterval(() => {
-        const saved = localStorage.getItem('docexpress_orders');
-        if (saved) {
-          const list: Order[] = JSON.parse(saved);
-          const updated = list.find(o => o.id === currentOrder.id);
-          if (updated && updated.status === 'APPROVED') {
-            setCurrentOrder(updated);
+      interval = setInterval(async () => {
+        try {
+          const { data } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', currentOrder.id)
+            .single();
+
+          if (data && data.status === 'completed') {
+            setCurrentOrder(prev => prev ? { ...prev, status: 'APPROVED' } : null);
             setStep('success');
           }
+        } catch (e) {
+          console.error(e);
         }
       }, 3000);
     }
     return () => clearInterval(interval);
   }, [step, currentOrder]);
 
-  const saveOrdersToStorage = (newOrders: Order[]) => {
-    setOrders(newOrders);
-    localStorage.setItem('docexpress_orders', JSON.stringify(newOrders));
-  };
-
   const handleSelectDoc = (doc: DocumentConfig) => {
     setSelectedDoc(doc);
     setFormStep(1);
     setFormData({});
     setGeneratedBody('');
+    setSenderPhoneInput('');
+    setTransactionRefInput('');
     setStep('form');
     setIsMenuOpen(false);
   };
@@ -496,34 +530,60 @@ export default function Home() {
     setIsGeneratingContent(false);
   };
 
-  // --- INITIALISATION DU PAIEMENT WHATSAPP & ENREGISTREMENT DE LA COMMANDE ---
-  const handleInitiatePayment = () => {
+  // --- INITIALISATION DU PAIEMENT MANUEL ORANGE MONEY SUR SUPABASE ---
+  const handleInitiatePayment = async () => {
     if (!selectedDoc) return;
-    const refCode = `DOC-${Math.floor(100000 + Math.random() * 900000)}`;
-    const phone = formData.phone || formData.bailleur_phone || formData.vendeur_phone || formData.payeur_phone || 'Non renseigné';
+    if (!senderPhoneInput || !transactionRefInput) {
+      alert('Veuillez renseigner votre numéro expéditeur et la référence de transaction SMS.');
+      return;
+    }
 
-    const newOrder: Order = {
-      id: refCode,
-      docTitle: selectedDoc.title,
-      price: selectedDoc.price,
-      clientPhone: phone,
-      status: 'PENDING',
-      createdAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-      formData,
-      generatedBody
-    };
+    setIsSubmittingPayment(true);
 
-    const updatedOrders = [newOrder, ...orders];
-    saveOrdersToStorage(updatedOrders);
-    setCurrentOrder(newOrder);
+    try {
+      // Insertion de la commande dans la base de données Supabase
+      const { data, error } = await supabase
+        .from('orders')
+        .insert([
+          {
+            amount: selectedDoc.priceNumeric,
+            payment_method: 'om_manual',
+            sender_phone: senderPhoneInput,
+            transaction_ref: transactionRefInput,
+            status: 'pending_verification',
+            doc_title: selectedDoc.title,
+            form_data: formData,
+            generated_body: generatedBody
+          }
+        ])
+        .select()
+        .single();
 
-    // Message pré-rempli pour WhatsApp
-    const message = encodeURIComponent(
-      `Bonjour DocExpress,\nJe viens d'effectuer le paiement de ${selectedDoc.price} pour le document "${selectedDoc.title}".\n\nRéférence : ${refCode}`
-    );
-    window.open(`https://wa.me/237655069396?text=${message}`, '_blank');
+      if (error) {
+        throw error;
+      }
 
-    setStep('pending');
+      const newOrder: Order = {
+        id: data.id,
+        docTitle: selectedDoc.title,
+        price: selectedDoc.price,
+        clientPhone: senderPhoneInput,
+        senderPhone: senderPhoneInput,
+        transactionRef: transactionRefInput,
+        status: 'PENDING',
+        createdAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        formData,
+        generatedBody
+      };
+
+      setCurrentOrder(newOrder);
+      setStep('pending');
+    } catch (err: any) {
+      console.error('Erreur Supabase :', err);
+      alert('Impossible d\'enregistrer la commande dans Supabase. Vérifiez votre connexion.');
+    } finally {
+      setIsSubmittingPayment(false);
+    }
   };
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -536,9 +596,21 @@ export default function Home() {
     }
   };
 
-  const handleApproveOrder = (orderId: string) => {
-    const updated = orders.map(o => o.id === orderId ? { ...o, status: 'APPROVED' as const } : o);
-    saveOrdersToStorage(updated);
+  const handleApproveOrder = async (orderId: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'completed' })
+        .eq('id', orderId);
+
+      if (!error) {
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'APPROVED' as const } : o));
+      } else {
+        alert('Erreur lors de la validation sur Supabase.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const generatePDF = async () => {
@@ -660,7 +732,7 @@ export default function Home() {
             padding: '8px',
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'space-around',
+            justify.content: 'space-around',
             width: '32px',
             height: '32px',
             zIndex: 101
@@ -925,12 +997,12 @@ export default function Home() {
           </div>
         )}
 
-        {/* 5. PAIEMENT MANUEL */}
+        {/* 5. PAIEMENT MANUEL ORANGE MONEY */}
         {step === 'payment' && selectedDoc && (
           <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Paiement Mobile</h2>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Paiement Orange Money</h2>
             <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1rem' }}>
-              Effectuez le dépôt du montant exact sur l'un des numéros ci-dessous, puis cliquez sur le bouton pour valider sur WhatsApp.
+              Effectuez un transfert du montant exact vers le numéro ci-dessous, puis saisissez les informations de votre SMS de confirmation.
             </p>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid #3A506B', marginBottom: '1.5rem' }}>
@@ -938,20 +1010,40 @@ export default function Home() {
               <span style={{ fontWeight: 'bold', color: '#4CC9F0' }}>{selectedDoc.price}</span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem' }}>
-              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FF7900' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FF7900' }}>🟠 Orange Money</span>
-                <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.05rem' }}>655069396</p>
+            <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FF7900', marginBottom: '1.5rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FF7900' }}>🟠 Numéro Orange Money</span>
+              <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.2rem', letterSpacing: '1px' }}>+237 655 06 93 96</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#8D99AE' }}>Votre Numéro Expéditeur (Orange Money)</label>
+                <input 
+                  type="text" 
+                  value={senderPhoneInput} 
+                  onChange={(e) => setSenderPhoneInput(e.target.value)} 
+                  placeholder="Ex: 655XXXXXX"
+                  style={inputStyle}
+                />
               </div>
 
-              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FFCC00' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FFCC00' }}>🟡 MTN Mobile Money</span>
-                <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.05rem' }}>655069396</p>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#8D99AE' }}>Référence de Transaction SMS</label>
+                <input 
+                  type="text" 
+                  value={transactionRefInput} 
+                  onChange={(e) => setTransactionRefInput(e.target.value)} 
+                  placeholder="Ex: PP260914.XXXX.XXXXX"
+                  style={inputStyle}
+                />
               </div>
             </div>
 
-            <button onClick={handleInitiatePayment} style={{ width: '100%', backgroundColor: '#25D366', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
-              💬 CONFIRMER SUR WHATSAPP
+            <button 
+              onClick={handleInitiatePayment} 
+              disabled={isSubmittingPayment}
+              style={{ width: '100%', backgroundColor: '#FF7900', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
+              {isSubmittingPayment ? 'Enregistrement en cours...' : '✅ VALIDER MA COMMANDE'}
             </button>
           </div>
         )}
@@ -969,12 +1061,13 @@ export default function Home() {
             
             <h2 style={{ fontSize: '1.3rem', color: '#4CC9F0', marginBottom: '0.5rem' }}>Vérification du paiement en cours...</h2>
             <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1.5rem' }}>
-              Votre demande a bien été transmise. Dès confirmation de votre dépôt par notre équipe, le bouton de téléchargement s'activera automatiquement sur cette page.
+              Votre demande a bien été transmise dans Supabase. Dès confirmation de votre dépôt par l'administration, votre document PDF sera automatiquement disponible ci-dessous.
             </p>
 
             <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', textAlign: 'left', fontSize: '0.85rem' }}>
-              <p style={{ margin: '0 0 0.5rem 0', color: '#8D99AE' }}>Référence de commande : <strong style={{ color: '#FFF' }}>{currentOrder.id}</strong></p>
+              <p style={{ margin: '0 0 0.5rem 0', color: '#8D99AE' }}>ID Commande Supabase : <strong style={{ color: '#FFF' }}>{currentOrder.id}</strong></p>
               <p style={{ margin: '0 0 0.5rem 0', color: '#8D99AE' }}>Document : <strong style={{ color: '#FFF' }}>{currentOrder.docTitle}</strong></p>
+              <p style={{ margin: '0 0 0.5rem 0', color: '#8D99AE' }}>Expéditeur : <strong style={{ color: '#FFF' }}>{currentOrder.senderPhone}</strong></p>
               <p style={{ margin: 0, color: '#8D99AE' }}>Montant : <strong style={{ color: '#4CC9F0' }}>{currentOrder.price}</strong></p>
             </div>
           </div>
@@ -1034,24 +1127,24 @@ export default function Home() {
           </div>
         )}
 
-        {/* 9. DASHBOARD ADMIN */}
+        {/* 9. DASHBOARD ADMIN (SUPABASE) */}
         {step === 'admin_dashboard' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ fontSize: '1.2rem', color: '#F72585', margin: 0 }}>📊 Suivi des Paiements</h2>
+              <h2 style={{ fontSize: '1.2rem', color: '#F72585', margin: 0 }}>📊 Suivi des Paiements Supabase</h2>
               <button onClick={() => setStep('home')} style={{ backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
                 Quitter
               </button>
             </div>
 
             {orders.length === 0 ? (
-              <p style={{ color: '#8D99AE', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande enregistrée pour le moment.</p>
+              <p style={{ color: '#8D99AE', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande enregistrée dans Supabase pour le moment.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {orders.map((ord) => (
                   <div key={ord.id} style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '10px', border: '1px solid #3A506B', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 'bold', color: '#4CC9F0', fontSize: '0.95rem' }}>{ord.id}</span>
+                      <span style={{ fontWeight: 'bold', color: '#4CC9F0', fontSize: '0.85rem' }}>{ord.id}</span>
                       <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: ord.status === 'APPROVED' ? 'rgba(37, 211, 102, 0.2)' : 'rgba(247, 37, 133, 0.2)', color: ord.status === 'APPROVED' ? '#25D366' : '#F72585', fontWeight: 'bold' }}>
                         {ord.status === 'APPROVED' ? 'VALIDE' : 'EN ATTENTE'}
                       </span>
@@ -1060,7 +1153,8 @@ export default function Home() {
                     <div style={{ fontSize: '0.85rem' }}>
                       <p style={{ margin: '0 0 0.2rem 0' }}>Document : <strong>{ord.docTitle}</strong></p>
                       <p style={{ margin: '0 0 0.2rem 0' }}>Montant : <strong>{ord.price}</strong></p>
-                      <p style={{ margin: 0 }}>Client : <strong>{ord.clientPhone}</strong> ({ord.createdAt})</p>
+                      <p style={{ margin: '0 0 0.2rem 0' }}>Expéditeur OM : <strong>{ord.senderPhone}</strong></p>
+                      <p style={{ margin: 0 }}>Réf SMS : <strong>{ord.transactionRef || 'N/A'}</strong> ({ord.createdAt})</p>
                     </div>
 
                     {ord.status === 'PENDING' && (
