@@ -251,7 +251,6 @@ export default function Home() {
   const [generatedBody, setGeneratedBody] = useState<string>('');
   const [formData, setFormData] = useState<Record<string, string>>({});
 
-  // --- ÉTAT DU PAIEMENT & COMMANDES (SUPABASE & ORANGE MONEY) ---
   const [senderPhoneInput, setSenderPhoneInput] = useState('');
   const [transactionRefInput, setTransactionRefInput] = useState('');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
@@ -264,7 +263,6 @@ export default function Home() {
   const documentRef = useRef<HTMLDivElement>(null);
   const sortedDocuments = Object.values(DOCUMENTS_CONFIG).sort((a, b) => a.priceNumeric - b.priceNumeric);
 
-  // Masquer l'écran de bienvenue après 2.5s
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
@@ -272,7 +270,6 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Charger les commandes depuis Supabase pour l'administration
   const fetchSupabaseOrders = async () => {
     try {
       const { data, error } = await supabase
@@ -296,7 +293,7 @@ export default function Home() {
         setOrders(mappedOrders);
       }
     } catch (err) {
-      console.error('Erreur chargement Supabase:', err);
+      console.error('Erreur Supabase:', err);
     }
   };
 
@@ -304,7 +301,6 @@ export default function Home() {
     fetchSupabaseOrders();
   }, [step]);
 
-  // Synchronisation continue / Polling pour l'écran client en attente de validation
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (step === 'pending' && currentOrder) {
@@ -530,7 +526,6 @@ export default function Home() {
     setIsGeneratingContent(false);
   };
 
-  // --- INITIALISATION DU PAIEMENT MANUEL ORANGE MONEY SUR SUPABASE ---
   const handleInitiatePayment = async () => {
     if (!selectedDoc) return;
     if (!senderPhoneInput || !transactionRefInput) {
@@ -541,7 +536,6 @@ export default function Home() {
     setIsSubmittingPayment(true);
 
     try {
-      // Insertion de la commande dans la base de données Supabase
       const { data, error } = await supabase
         .from('orders')
         .insert([
@@ -648,7 +642,7 @@ export default function Home() {
   return (
     <div style={{ backgroundColor: '#0B132B', color: '#FFFFFF', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', position: 'relative' }}>
       
-      {/* 0. ÉCRAN DE BIENVENUE (SPLASH SCREEN) */}
+      {/* 0. ÉCRAN DE BIENVENUE */}
       {showSplash && (
         <div style={{
           position: 'fixed',
@@ -732,7 +726,7 @@ export default function Home() {
             padding: '8px',
             display: 'flex',
             flexDirection: 'column',
-            justify.content: 'space-around',
+            justifyContent: 'space-around',
             width: '32px',
             height: '32px',
             zIndex: 101
@@ -793,7 +787,7 @@ export default function Home() {
           </button>
 
           <div>
-            <h3 style={{ fontSize: '0.9rem', color: '#8D99AE', textTransform: 'uppercase', marginBottom: '0.8rem' }}>Tous les documents (par ordre de valeur)</h3>
+            <h3 style={{ fontSize: '0.9rem', color: '#8D99AE', textTransform: 'uppercase', marginBottom: '0.8rem' }}>Tous les documents</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {sortedDocuments.map((doc) => (
                 <div 
@@ -1127,7 +1121,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* 9. DASHBOARD ADMIN (SUPABASE) */}
+        {/* 9. DASHBOARD ADMIN */}
         {step === 'admin_dashboard' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
