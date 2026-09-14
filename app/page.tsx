@@ -3,6 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { createClient } from '@supabase/supabase-js';
+
+// --- INITIALISATION SUPABASE ---
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // --- INTERFACES & CONFIGURATION ---
 interface FormField {
@@ -31,6 +37,8 @@ interface Order {
   docTitle: string;
   price: string;
   clientPhone: string;
+  senderPhone?: string;
+  transactionRef?: string;
   status: 'PENDING' | 'APPROVED';
   createdAt: string;
   formData: Record<string, string>;
@@ -243,6 +251,10 @@ export default function Home() {
   const [generatedBody, setGeneratedBody] = useState<string>('');
   const [formData, setFormData] = useState<Record<string, string>>({});
 
+  const [senderPhoneInput, setSenderPhoneInput] = useState('');
+  const [transactionRefInput, setTransactionRefInput] = useState('');
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [adminPinInput, setAdminPinInput] = useState('');
@@ -252,49 +264,73 @@ export default function Home() {
   const sortedDocuments = Object.values(DOCUMENTS_CONFIG).sort((a, b) => a.priceNumeric - b.priceNumeric);
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 2500);
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('docexpress_orders');
-    if (saved) {
-      try {
-        setOrders(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
+  const fetchSupabaseOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (data && !error) {
+        const mappedOrders: Order[] = data.map((item: any) => ({
+          id: item.id,
+          docTitle: item.doc_title || 'Document',
+          price: `${item.amount || 0} FCFA`,
+          clientPhone: item.sender_phone || 'Non renseigné',
+          senderPhone: item.sender_phone,
+          transactionRef: item.transaction_ref,
+          status: item.status === 'completed' ? 'APPROVED' : 'PENDING',
+          createdAt: new Date(item.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          formData: item.form_data || {},
+          generatedBody: item.generated_body || ''
+        }));
+        setOrders(mappedOrders);
       }
+    } catch (err) {
+      console.error('Erreur Supabase:', err);
     }
-  }, []);
+  };
+
+  useEffect(() => {
+    fetchSupabaseOrders();
+  }, [step]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (step === 'pending' && currentOrder) {
-      interval = setInterval(() => {
-        const saved = localStorage.getItem('docexpress_orders');
-        if (saved) {
-          const list: Order[] = JSON.parse(saved);
-          const updated = list.find(o => o.id === currentOrder.id);
-          if (updated && updated.status === 'APPROVED') {
-            setCurrentOrder(updated);
+      interval = setInterval(async () => {
+        try {
+          const { data } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', currentOrder.id)
+            .single();
+
+          if (data && data.status === 'completed') {
+            setCurrentOrder(prev => prev ? { ...prev, status: 'APPROVED' } : null);
             setStep('success');
           }
+        } catch (e) {
+          console.error(e);
         }
       }, 3000);
     }
     return () => clearInterval(interval);
   }, [step, currentOrder]);
 
-  const saveOrdersToStorage = (newOrders: Order[]) => {
-    setOrders(newOrders);
-    localStorage.setItem('docexpress_orders', JSON.stringify(newOrders));
-  };
-
   const handleSelectDoc = (doc: DocumentConfig) => {
     setSelectedDoc(doc);
     setFormStep(1);
     setFormData({});
     setGeneratedBody('');
+    setSenderPhoneInput('');
+    setTransactionRefInput('');
     setStep('form');
     setIsMenuOpen(false);
   };
@@ -305,14 +341,24 @@ export default function Home() {
 
   const handleBack = () => {
     if (step === 'form') {
-      if (formStep > 1) setFormStep(formStep - 1);
-      else setStep('home');
-    } else if (step === 'review') setStep('form');
-    else if (step === 'preview') setStep('review');
-    else if (step === 'payment') setStep('preview');
-    else if (step === 'pending') setStep('payment');
-    else if (step === 'success') setStep('home');
-    else if (step === 'admin_login' || step === 'admin_dashboard') setStep('home');
+      if (formStep > 1) {
+        setFormStep(formStep - 1);
+      } else {
+        setStep('home');
+      }
+    } else if (step === 'review') {
+      setStep('form');
+    } else if (step === 'preview') {
+      setStep('review');
+    } else if (step === 'payment') {
+      setStep('preview');
+    } else if (step === 'pending') {
+      setStep('payment');
+    } else if (step === 'success') {
+      setStep('home');
+    } else if (step === 'admin_login' || step === 'admin_dashboard') {
+      setStep('home');
+    }
   };
 
   const handleProcessDocument = async () => {
@@ -480,32 +526,58 @@ export default function Home() {
     setIsGeneratingContent(false);
   };
 
-  const handleInitiatePayment = () => {
+  const handleInitiatePayment = async () => {
     if (!selectedDoc) return;
-    const refCode = `DOC-${Math.floor(100000 + Math.random() * 900000)}`;
-    const phone = formData.phone || formData.bailleur_phone || formData.vendeur_phone || formData.payeur_phone || 'Non renseigné';
+    if (!senderPhoneInput || !transactionRefInput) {
+      alert('Veuillez renseigner votre numéro expéditeur et la référence de transaction SMS.');
+      return;
+    }
 
-    const newOrder: Order = {
-      id: refCode,
-      docTitle: selectedDoc.title,
-      price: selectedDoc.price,
-      clientPhone: phone,
-      status: 'PENDING',
-      createdAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-      formData,
-      generatedBody
-    };
+    setIsSubmittingPayment(true);
 
-    const updatedOrders = [newOrder, ...orders];
-    saveOrdersToStorage(updatedOrders);
-    setCurrentOrder(newOrder);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .insert([
+          {
+            amount: selectedDoc.priceNumeric,
+            payment_method: 'om_manual',
+            sender_phone: senderPhoneInput,
+            transaction_ref: transactionRefInput,
+            status: 'pending_verification',
+            doc_title: selectedDoc.title,
+            form_data: formData,
+            generated_body: generatedBody
+          }
+        ])
+        .select()
+        .single();
 
-    const message = encodeURIComponent(
-      `Bonjour DocExpress,\nJe viens d'effectuer le paiement de ${selectedDoc.price} pour le document "${selectedDoc.title}".\n\nRéférence : ${refCode}`
-    );
-    window.open(`https://wa.me/237655069396?text=${message}`, '_blank');
+      if (error) {
+        throw error;
+      }
 
-    setStep('pending');
+      const newOrder: Order = {
+        id: data.id,
+        docTitle: selectedDoc.title,
+        price: selectedDoc.price,
+        clientPhone: senderPhoneInput,
+        senderPhone: senderPhoneInput,
+        transactionRef: transactionRefInput,
+        status: 'PENDING',
+        createdAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        formData,
+        generatedBody
+      };
+
+      setCurrentOrder(newOrder);
+      setStep('pending');
+    } catch (err: any) {
+      console.error('Erreur Supabase :', err);
+      alert('Impossible d\'enregistrer la commande dans Supabase. Vérifiez votre connexion.');
+    } finally {
+      setIsSubmittingPayment(false);
+    }
   };
 
   const handleAdminLogin = (e: React.FormEvent) => {
@@ -518,9 +590,21 @@ export default function Home() {
     }
   };
 
-  const handleApproveOrder = (orderId: string) => {
-    const updated = orders.map(o => o.id === orderId ? { ...o, status: 'APPROVED' as const } : o);
-    saveOrdersToStorage(updated);
+  const handleApproveOrder = async (orderId: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'completed' })
+        .eq('id', orderId);
+
+      if (!error) {
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'APPROVED' as const } : o));
+      } else {
+        alert('Erreur lors de la validation sur Supabase.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const generatePDF = async () => {
@@ -575,15 +659,51 @@ export default function Home() {
           textAlign: 'center',
           padding: '2rem'
         }}>
-          <div style={{ fontSize: '2.5rem', fontWeight: '900', letterSpacing: '3px', color: '#4CC9F0', marginBottom: '0.2rem', textTransform: 'uppercase' }}>
+          <div style={{
+            fontSize: '2.5rem',
+            fontWeight: '900',
+            letterSpacing: '3px',
+            color: '#4CC9F0',
+            marginBottom: '0.2rem',
+            textTransform: 'uppercase',
+            textShadow: '0 0 20px rgba(76, 201, 240, 0.4)'
+          }}>
             DOCEXPRESS
           </div>
-          <p style={{ fontSize: '0.75rem', letterSpacing: '2px', color: '#F72585', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '1rem' }}>
+          <p style={{
+            fontSize: '0.75rem',
+            letterSpacing: '2px',
+            color: '#F72585',
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            marginBottom: '1rem'
+          }}>
             PAR DESIRE ATANGANA ATANGANA
           </p>
-          <p style={{ fontSize: '1.2rem', color: '#8D99AE', letterSpacing: '2px', fontWeight: '300', margin: 0 }}>
+          <p style={{
+            fontSize: '1.2rem',
+            color: '#8D99AE',
+            letterSpacing: '2px',
+            fontWeight: '300',
+            margin: 0
+          }}>
             BIENVENUE
           </p>
+          <div style={{
+            marginTop: '2rem',
+            width: '40px',
+            height: '40px',
+            border: '3px solid #1C2541',
+            borderTop: '3px solid #4CC9F0',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <style jsx>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
         </div>
       )}
 
@@ -599,27 +719,81 @@ export default function Home() {
         <button 
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           aria-label="Menu"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '8px', display: 'flex', flexDirection: 'column', justifyContent: 'space-around', width: '32px', height: '32px', zIndex: 101 }}>
-          <span style={{ width: '100%', height: '3px', backgroundColor: '#4CC9F0', borderRadius: '2px' }} />
-          <span style={{ width: '100%', height: '3px', backgroundColor: '#4CC9F0', borderRadius: '2px' }} />
-          <span style={{ width: '100%', height: '3px', backgroundColor: '#4CC9F0', borderRadius: '2px' }} />
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '8px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-around',
+            width: '32px',
+            height: '32px',
+            zIndex: 101
+          }}>
+          <span style={{
+            width: '100%',
+            height: '3px',
+            backgroundColor: '#4CC9F0',
+            borderRadius: '2px',
+            transition: 'all 0.3s ease',
+            transform: isMenuOpen ? 'rotate(45deg) translate(6px, 6px)' : 'rotate(0)'
+          }} />
+          <span style={{
+            width: '100%',
+            height: '3px',
+            backgroundColor: '#4CC9F0',
+            borderRadius: '2px',
+            transition: 'all 0.3s ease',
+            opacity: isMenuOpen ? 0 : 1
+          }} />
+          <span style={{
+            width: '100%',
+            height: '3px',
+            backgroundColor: '#4CC9F0',
+            borderRadius: '2px',
+            transition: 'all 0.3s ease',
+            transform: isMenuOpen ? 'rotate(-45deg) translate(6px, -6px)' : 'rotate(0)'
+          }} />
         </button>
       </header>
 
       {/* MENU DÉROULANT */}
       {isMenuOpen && (
-        <div style={{ position: 'fixed', top: '60px', left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11, 19, 43, 0.98)', zIndex: 99, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }}>
-          <button onClick={() => { setStep('home'); setIsMenuOpen(false); }} style={{ backgroundColor: '#1C2541', color: '#FFF', border: '1px solid #3A506B', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', textAlign: 'left', cursor: 'pointer' }}>
+        <div style={{
+          position: 'fixed',
+          top: '60px',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(11, 19, 43, 0.98)',
+          zIndex: 99,
+          padding: '1.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1.5rem',
+          overflowY: 'auto'
+        }}>
+          <button 
+            onClick={() => { setStep('home'); setIsMenuOpen(false); }}
+            style={{ backgroundColor: '#1C2541', color: '#FFF', border: '1px solid #3A506B', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', textAlign: 'left', cursor: 'pointer' }}>
             🏠 Page d'accueil
           </button>
-          <button onClick={() => { setStep('admin_login'); setIsMenuOpen(false); }} style={{ backgroundColor: '#1C2541', color: '#F72585', border: '1px solid #F72585', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', textAlign: 'left', cursor: 'pointer' }}>
+
+          <button 
+            onClick={() => { setStep('admin_login'); setIsMenuOpen(false); }}
+            style={{ backgroundColor: '#1C2541', color: '#F72585', border: '1px solid #F72585', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', textAlign: 'left', cursor: 'pointer' }}>
             🔒 Espace Administration
           </button>
+
           <div>
             <h3 style={{ fontSize: '0.9rem', color: '#8D99AE', textTransform: 'uppercase', marginBottom: '0.8rem' }}>Tous les documents</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {sortedDocuments.map((doc) => (
-                <div key={doc.id} onClick={() => handleSelectDoc(doc)} style={{ backgroundColor: '#0B132B', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid #1C2541', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div 
+                  key={doc.id}
+                  onClick={() => handleSelectDoc(doc)}
+                  style={{ backgroundColor: '#0B132B', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid #1C2541', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.95rem', color: '#FFF' }}>{doc.title}</span>
                   <span style={{ fontSize: '0.8rem', color: '#4CC9F0', fontWeight: 'bold' }}>{doc.price}</span>
                 </div>
@@ -631,19 +805,33 @@ export default function Home() {
 
       <main style={{ maxWidth: '600px', margin: '0 auto', padding: '1.5rem' }}>
 
+        {/* BARRE DE RETOUR */}
         {step !== 'home' && (
           <div style={{ marginBottom: '1rem' }}>
-            <button onClick={handleBack} style={{ background: 'none', border: 'none', color: '#8D99AE', fontSize: '0.9rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <button 
+              onClick={handleBack}
+              style={{ background: 'none', border: 'none', color: '#8D99AE', fontSize: '0.9rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               ⬅️ Page précédente
             </button>
           </div>
         )}
 
-        {/* ACCUEIL */}
+        {/* 1. ACCUEIL */}
         {step === 'home' && (
           <div>
             <section style={{ textAlign: 'center', padding: '1.5rem 0' }}>
-              <div style={{ display: 'inline-block', backgroundColor: 'rgba(247, 37, 133, 0.1)', border: '1px solid #F72585', color: '#F72585', padding: '0.3rem 0.8rem', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '1rem', letterSpacing: '1px' }}>
+              <div style={{
+                display: 'inline-block',
+                backgroundColor: 'rgba(247, 37, 133, 0.1)',
+                border: '1px solid #F72585',
+                color: '#F72585',
+                padding: '0.3rem 0.8rem',
+                borderRadius: '20px',
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                marginBottom: '1rem',
+                letterSpacing: '1px'
+              }}>
                 UNE CRÉATION DE DESIRE ATANGANA ATANGANA
               </div>
               <h1 style={{ fontSize: '1.8rem', fontWeight: '800', lineHeight: 1.2, marginBottom: '0.8rem' }}>
@@ -657,13 +845,22 @@ export default function Home() {
             <section>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h2 style={{ fontSize: '1.2rem', margin: 0 }}>🔥 Choisissez votre document</h2>
+                <span style={{ fontSize: '0.75rem', color: '#8D99AE', fontStyle: 'italic' }}>Du - au + coûteux</span>
               </div>
+              
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {sortedDocuments.map((doc) => (
-                  <div key={doc.id} onClick={() => handleSelectDoc(doc)} style={{ backgroundColor: '#1C2541', borderRadius: '12px', padding: '1.2rem', border: '1px solid #3A506B', cursor: 'pointer' }}>
+                  <div 
+                    key={doc.id}
+                    onClick={() => handleSelectDoc(doc)}
+                    style={{ backgroundColor: '#1C2541', borderRadius: '12px', padding: '1.2rem', border: '1px solid #3A506B', cursor: 'pointer' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <span style={{ fontSize: '0.7rem', color: '#4CC9F0', fontWeight: 'bold' }}>{doc.category}</span>
-                      {doc.badge && <span style={{ backgroundColor: '#4361EE', color: '#FFF', fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>{doc.badge}</span>}
+                      {doc.badge && (
+                        <span style={{ backgroundColor: '#4361EE', color: '#FFF', fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>
+                          {doc.badge}
+                        </span>
+                      )}
                     </div>
                     <h3 style={{ fontSize: '1.1rem', margin: '0.4rem 0' }}>{doc.title}</h3>
                     <p style={{ fontSize: '0.85rem', color: '#8D99AE', margin: '0 0 1rem 0' }}>{doc.desc}</p>
@@ -678,44 +875,72 @@ export default function Home() {
           </div>
         )}
 
-        {/* FORMULAIRE */}
+        {/* 2. FORMULAIRE DYNAMIQUE */}
         {step === 'form' && selectedDoc && (
           <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
             <div style={{ marginBottom: '1.5rem' }}>
               <span style={{ fontSize: '0.8rem', color: '#4CC9F0' }}>Création de votre {selectedDoc.title}</span>
               <h2 style={{ fontSize: '1.2rem', margin: '0.2rem 0 0.8rem 0' }}>Étape {formStep} sur 3</h2>
+              <div style={{ backgroundColor: '#0B132B', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ backgroundColor: '#4361EE', width: `${(formStep / 3) * 100}%`, height: '100%', transition: 'width 0.3s' }}></div>
+              </div>
             </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {selectedDoc.fields.filter(f => f.step === formStep).map(field => (
-                <div key={field.id}>
-                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#8D99AE' }}>
-                    {field.label} {field.required && '*'}
-                  </label>
-                  {field.type === 'textarea' ? (
-                    <textarea value={formData[field.id] || ''} onChange={(e) => handleInputChange(field.id, e.target.value)} placeholder={field.placeholder} style={{ ...inputStyle, minHeight: '90px' }} />
-                  ) : field.type === 'select' ? (
-                    <select value={formData[field.id] || ''} onChange={(e) => handleInputChange(field.id, e.target.value)} style={inputStyle}>
-                      <option value="">Sélectionnez...</option>
-                      {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                    </select>
-                  ) : (
-                    <input type={field.type} value={formData[field.id] || ''} onChange={(e) => handleInputChange(field.id, e.target.value)} placeholder={field.placeholder} style={inputStyle} />
-                  )}
-                </div>
-              ))}
+              {selectedDoc.fields
+                .filter(f => f.step === formStep)
+                .map(field => (
+                  <div key={field.id}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#8D99AE' }}>
+                      {field.label} {field.required && '*'}
+                    </label>
+                    {field.type === 'textarea' ? (
+                      <textarea
+                        value={formData[field.id] || ''}
+                        onChange={(e) => handleInputChange(field.id, e.target.value)}
+                        placeholder={field.placeholder}
+                        style={{ ...inputStyle, minHeight: '90px' }}
+                      />
+                    ) : field.type === 'select' ? (
+                      <select
+                        value={formData[field.id] || ''}
+                        onChange={(e) => handleInputChange(field.id, e.target.value)}
+                        style={inputStyle}>
+                        <option value="">Sélectionnez...</option>
+                        {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    ) : (
+                      <input
+                        type={field.type}
+                        value={formData[field.id] || ''}
+                        onChange={(e) => handleInputChange(field.id, e.target.value)}
+                        placeholder={field.placeholder}
+                        style={inputStyle}
+                      />
+                    )}
+                  </div>
+                ))}
             </div>
+
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-              <button onClick={handleBack} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Retour</button>
+              <button onClick={handleBack} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                Retour
+              </button>
+              
               {formStep < 3 ? (
-                <button onClick={() => setFormStep(formStep + 1)} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Continuer →</button>
+                <button onClick={() => setFormStep(formStep + 1)} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Continuer →
+                </button>
               ) : (
-                <button onClick={() => setStep('review')} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Vérifier mes infos →</button>
+                <button onClick={() => setStep('review')} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Vérifier mes infos →
+                </button>
               )}
             </div>
           </div>
         )}
 
-        {/* REVUE */}
+        {/* 3. ÉCRAN DE VÉRIFICATION */}
         {step === 'review' && selectedDoc && (
           <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
             <h2 style={{ fontSize: '1.2rem', color: '#4CC9F0', marginBottom: '1rem' }}>🔍 Vérifiez vos informations</h2>
@@ -729,8 +954,11 @@ export default function Home() {
                 ) : null
               ))}
             </div>
+
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={() => setStep('form')} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>✏️ Modifier</button>
+              <button onClick={() => setStep('form')} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                ✏️ Modifier
+              </button>
               <button onClick={handleProcessDocument} disabled={isGeneratingContent} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
                 {isGeneratingContent ? 'Génération...' : '🚀 Générer mon document →'}
               </button>
@@ -738,99 +966,197 @@ export default function Home() {
           </div>
         )}
 
-        {/* APERÇU */}
+        {/* 4. APERÇU SPÉCIMEN */}
         {step === 'preview' && selectedDoc && (
           <div>
             <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', textAlign: 'center' }}>Aperçu de votre document</h2>
+            
             <div style={{ backgroundColor: '#FFF', color: '#111', padding: '1.5rem', borderRadius: '8px', position: 'relative', overflow: 'hidden', minHeight: '350px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontFamily: "'Times New Roman', Times, serif" }}>
               <div style={{ position: 'absolute', top: '35%', left: '5%', right: '5%', transform: 'rotate(-25deg)', fontSize: '2.2rem', fontWeight: '900', color: 'rgba(230, 57, 70, 0.18)', pointerEvents: 'none', userSelect: 'none', textAlign: 'center', border: '4px dashed rgba(230, 57, 70, 0.25)', padding: '10px' }}>
                 SPÉCIMEN - DOCEXPRESS
               </div>
+
               <div style={{ fontSize: '0.85rem', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: generatedBody }} />
             </div>
+
             <div style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
               <div>
                 <span style={{ fontSize: '0.9rem', display: 'block' }}>{selectedDoc.title}</span>
                 <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#4CC9F0' }}>{selectedDoc.price}</span>
               </div>
-              <button onClick={() => setStep('payment')} style={{ backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem 1.2rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Payer pour télécharger →</button>
+              <button onClick={() => setStep('payment')} style={{ backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem 1.2rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                Payer pour télécharger →
+              </button>
             </div>
           </div>
         )}
 
-        {/* PAIEMENT */}
+        {/* 5. PAIEMENT MANUEL ORANGE MONEY */}
         {step === 'payment' && selectedDoc && (
           <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Paiement Mobile</h2>
-            <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1rem' }}>Effectuez le dépôt du montant exact, puis validez sur WhatsApp.</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem' }}>
-              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FF7900' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FF7900' }}>🟠 Orange Money</span>
-                <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.05rem' }}>655069396</p>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Paiement Orange Money</h2>
+            <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1rem' }}>
+              Effectuez un transfert du montant exact vers le numéro ci-dessous, puis saisissez les informations de votre SMS de confirmation.
+            </p>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid #3A506B', marginBottom: '1.5rem' }}>
+              <span>{selectedDoc.title}</span>
+              <span style={{ fontWeight: 'bold', color: '#4CC9F0' }}>{selectedDoc.price}</span>
+            </div>
+
+            <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FF7900', marginBottom: '1.5rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FF7900' }}>🟠 Numéro Orange Money</span>
+              <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.2rem', letterSpacing: '1px' }}>+237 655 06 93 96</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#8D99AE' }}>Votre Numéro Expéditeur (Orange Money)</label>
+                <input 
+                  type="text" 
+                  value={senderPhoneInput} 
+                  onChange={(e) => setSenderPhoneInput(e.target.value)} 
+                  placeholder="Ex: 655XXXXXX"
+                  style={inputStyle}
+                />
               </div>
-              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FFCC00' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FFCC00' }}>🟡 MTN Mobile Money</span>
-                <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.05rem' }}>655069396</p>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#8D99AE' }}>Référence de Transaction SMS</label>
+                <input 
+                  type="text" 
+                  value={transactionRefInput} 
+                  onChange={(e) => setTransactionRefInput(e.target.value)} 
+                  placeholder="Ex: PP260914.XXXX.XXXXX"
+                  style={inputStyle}
+                />
               </div>
             </div>
-            <button onClick={handleInitiatePayment} style={{ width: '100%', backgroundColor: '#25D366', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>💬 CONFIRMER SUR WHATSAPP</button>
+
+            <button 
+              onClick={handleInitiatePayment} 
+              disabled={isSubmittingPayment}
+              style={{ width: '100%', backgroundColor: '#FF7900', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
+              {isSubmittingPayment ? 'Enregistrement en cours...' : '✅ VALIDER MA COMMANDE'}
+            </button>
           </div>
         )}
 
-        {/* PENDING */}
+        {/* 6. ÉCRAN D'ATTENTE CLIENT */}
         {step === 'pending' && currentOrder && (
           <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
+            <div style={{ width: '50px', height: '50px', border: '4px solid #1C2541', borderTop: '4px solid #4CC9F0', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 1.5rem auto' }} />
+            <style jsx>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+            
             <h2 style={{ fontSize: '1.3rem', color: '#4CC9F0', marginBottom: '0.5rem' }}>Vérification du paiement en cours...</h2>
             <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1.5rem' }}>
-              Dès confirmation de votre dépôt, le bouton de téléchargement s'activera ici.
+              Votre demande a bien été transmise dans Supabase. Dès confirmation de votre dépôt par l'administration, votre document PDF sera automatiquement disponible ci-dessous.
             </p>
+
+            <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', textAlign: 'left', fontSize: '0.85rem' }}>
+              <p style={{ margin: '0 0 0.5rem 0', color: '#8D99AE' }}>ID Commande Supabase : <strong style={{ color: '#FFF' }}>{currentOrder.id}</strong></p>
+              <p style={{ margin: '0 0 0.5rem 0', color: '#8D99AE' }}>Document : <strong style={{ color: '#FFF' }}>{currentOrder.docTitle}</strong></p>
+              <p style={{ margin: '0 0 0.5rem 0', color: '#8D99AE' }}>Expéditeur : <strong style={{ color: '#FFF' }}>{currentOrder.senderPhone}</strong></p>
+              <p style={{ margin: 0, color: '#8D99AE' }}>Montant : <strong style={{ color: '#4CC9F0' }}>{currentOrder.price}</strong></p>
+            </div>
           </div>
         )}
 
-        {/* TELECHARGEMENT */}
+        {/* 7. TÉLÉCHARGEMENT FINAL */}
         {step === 'success' && (selectedDoc || currentOrder) && (
           <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
             <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
             <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0', marginBottom: '0.5rem' }}>Paiement Confirmé !</h2>
-            <button onClick={generatePDF} disabled={isGeneratingPDF} style={{ width: '100%', backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1.5rem' }}>
+              Votre document a été validé. Vous pouvez le télécharger au format PDF officiel.
+            </p>
+
+            {/* ELEMENT MASQUÉ POUR IMPRESSION PDF */}
+            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+              <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFF', color: '#111', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
+                <div style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: currentOrder?.generatedBody || generatedBody }} />
+              </div>
+            </div>
+
+            <button 
+              onClick={generatePDF}
+              disabled={isGeneratingPDF}
+              style={{ width: '100%', backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1rem' }}>
               {isGeneratingPDF ? 'Téléchargement...' : '⬇️ TÉLÉCHARGER MON PDF'}
             </button>
-            <button onClick={() => setStep('home')} style={{ width: '100%', backgroundColor: '#0B132B', color: '#8D99AE', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer' }}>🏠 Créer un autre document</button>
+
+            <button 
+              onClick={() => setStep('home')}
+              style={{ width: '100%', backgroundColor: '#0B132B', color: '#8D99AE', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer' }}>
+              🏠 Créer un autre document
+            </button>
           </div>
         )}
 
-        {/* LOGIN ADMIN */}
+        {/* 8. CONNEXION ADMIN */}
         {step === 'admin_login' && (
           <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
             <h2 style={{ fontSize: '1.2rem', color: '#F72585', marginBottom: '1rem' }}>🔒 Espace Administration</h2>
             <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <input type="password" value={adminPinInput} onChange={(e) => setAdminPinInput(e.target.value)} placeholder="PIN (1234)" style={inputStyle} />
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#8D99AE' }}>Code PIN Accès</label>
+                <input 
+                  type="password" 
+                  value={adminPinInput} 
+                  onChange={(e) => setAdminPinInput(e.target.value)} 
+                  placeholder="Entrez le code PIN (ex: 1234)"
+                  style={inputStyle}
+                />
+              </div>
               {adminPinError && <p style={{ color: '#E63946', fontSize: '0.8rem', margin: 0 }}>Code PIN incorrect.</p>}
-              <button type="submit" style={{ backgroundColor: '#F72585', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Se connecter</button>
+              <button type="submit" style={{ backgroundColor: '#F72585', color: '#FFF', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                Se connecter
+              </button>
             </form>
           </div>
         )}
 
-        {/* DASHBOARD ADMIN */}
+        {/* 9. DASHBOARD ADMIN */}
         {step === 'admin_dashboard' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ fontSize: '1.2rem', color: '#F72585', margin: 0 }}>📊 Suivi des Paiements</h2>
-              <button onClick={() => setStep('home')} style={{ backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>Quitter</button>
+              <h2 style={{ fontSize: '1.2rem', color: '#F72585', margin: 0 }}>📊 Suivi des Paiements Supabase</h2>
+              <button onClick={() => setStep('home')} style={{ backgroundColor: '#0B132B', color: '#FFF', border: '1px solid #3A506B', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                Quitter
+              </button>
             </div>
+
             {orders.length === 0 ? (
-              <p style={{ color: '#8D99AE', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande.</p>
+              <p style={{ color: '#8D99AE', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande enregistrée dans Supabase pour le moment.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {orders.map((ord) => (
-                  <div key={ord.id} style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '10px', border: '1px solid #3A506B' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ fontWeight: 'bold', color: '#4CC9F0' }}>{ord.id}</span>
-                      <span style={{ color: ord.status === 'APPROVED' ? '#25D366' : '#F72585', fontWeight: 'bold' }}>{ord.status}</span>
+                  <div key={ord.id} style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '10px', border: '1px solid #3A506B', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 'bold', color: '#4CC9F0', fontSize: '0.85rem' }}>{ord.id}</span>
+                      <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: ord.status === 'APPROVED' ? 'rgba(37, 211, 102, 0.2)' : 'rgba(247, 37, 133, 0.2)', color: ord.status === 'APPROVED' ? '#25D366' : '#F72585', fontWeight: 'bold' }}>
+                        {ord.status === 'APPROVED' ? 'VALIDE' : 'EN ATTENTE'}
+                      </span>
                     </div>
-                    <p style={{ fontSize: '0.85rem', margin: '0.5rem 0' }}>{ord.docTitle} - {ord.price} ({ord.clientPhone})</p>
+
+                    <div style={{ fontSize: '0.85rem' }}>
+                      <p style={{ margin: '0 0 0.2rem 0' }}>Document : <strong>{ord.docTitle}</strong></p>
+                      <p style={{ margin: '0 0 0.2rem 0' }}>Montant : <strong>{ord.price}</strong></p>
+                      <p style={{ margin: '0 0 0.2rem 0' }}>Expéditeur OM : <strong>{ord.senderPhone}</strong></p>
+                      <p style={{ margin: 0 }}>Réf SMS : <strong>{ord.transactionRef || 'N/A'}</strong> ({ord.createdAt})</p>
+                    </div>
+
                     {ord.status === 'PENDING' && (
-                      <button onClick={() => handleApproveOrder(ord.id)} style={{ backgroundColor: '#25D366', color: '#FFF', border: 'none', padding: '0.5rem', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>✅ Valider le paiement</button>
+                      <button 
+                        onClick={() => handleApproveOrder(ord.id)}
+                        style={{ marginTop: '0.5rem', backgroundColor: '#25D366', color: '#FFF', border: 'none', padding: '0.6rem', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>
+                        ✅ Valider le paiement
+                      </button>
                     )}
                   </div>
                 ))}
@@ -839,14 +1165,10 @@ export default function Home() {
           </div>
         )}
 
-        {/* CONTAINER DE CAPTURE PDF CACHÉ VISUELLEMENT MAIS PRÉSENT DANS LE DOM */}
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '794px', zIndex: -9999, opacity: 0, pointerEvents: 'none' }}>
-          <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFF', color: '#111', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
-            <div style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: currentOrder?.generatedBody || generatedBody }} />
-          </div>
-        </div>
-
       </main>
     </div>
   );
 }
+
+
+Voici le code
