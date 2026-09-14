@@ -1170,5 +1170,3 @@ export default function Home() {
   );
 }
 
-
-Voici le code
