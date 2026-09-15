@@ -9,12 +9,12 @@ import {
   ArrowLeft, CreditCard, Lock, RefreshCw, Send, AlertCircle
 } from 'lucide-react';
 
-// Initialisation de Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Initialisation sécurisée pour éviter les erreurs lors du build sur Vercel
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Types
+// Interfaces de données
 interface DocumentTemplate {
   id: string;
   title: string;
@@ -35,7 +35,7 @@ interface Order {
   created_at?: string;
 }
 
-// Catalogue des modèles
+// Catalogue des modèles administratifs
 const DOCUMENT_TEMPLATES: DocumentTemplate[] = [
   {
     id: 'attestation-honneur',
@@ -93,7 +93,7 @@ export default function DocExpressApp() {
 
   const documentRef = useRef<HTMLDivElement>(null);
 
-  // Écoute des mises à jour en temps réel via Supabase Realtime
+  // Écoute de la validation administrative en temps réel via Supabase
   useEffect(() => {
     if (step === 'pending' && currentOrder?.id) {
       const channel = supabase
@@ -112,7 +112,7 @@ export default function DocExpressApp() {
               setCurrentOrder(updated);
               setStep('success');
             } else if (updated.status === 'REJECTED') {
-              alert('Votre paiement n’a pas pu être validé. Veuillez vérifier la référence.');
+              alert('Paiement non confirmé. Veuillez vérifier la référence SMS.');
               setStep('payment');
             }
           }
@@ -140,7 +140,7 @@ export default function DocExpressApp() {
     setStep('review');
   };
 
-  // Enregistrement de la commande dans Supabase
+  // Traitement et sauvegarde de la commande dans Supabase
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDoc || !userPhone || !transactionRef) return;
@@ -164,9 +164,8 @@ export default function DocExpressApp() {
         .single();
 
       if (error) {
-        // Affiche l'erreur exacte renvoyée par Supabase
-        console.error('Erreur Supabase insertion:', error);
-        alert(`Erreur Supabase: ${error.message} (Code: ${error.code}). Vérifiez vos règles RLS.`);
+        console.error('Erreur Supabase:', error);
+        alert(`Erreur d'enregistrement : ${error.message}`);
         setLoading(false);
         return;
       }
@@ -174,14 +173,14 @@ export default function DocExpressApp() {
       setCurrentOrder(data as Order);
       setStep('pending');
     } catch (err: any) {
-      console.error('Erreur inattendue:', err);
-      alert(`Impossible d'enregistrer la commande : ${err.message || 'Erreur réseau'}`);
+      console.error('Erreur:', err);
+      alert('Vérifiez votre connexion internet puis réessayez.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Téléchargement du PDF avec html2canvas et jsPDF
+  // Téléchargement du document au format PDF
   const generatePDF = async () => {
     if (!documentRef.current) return;
     setIsGeneratingPDF(true);
@@ -217,7 +216,7 @@ export default function DocExpressApp() {
     }
   };
 
-  // Fonctions d'administration
+  // Gestion du tableau de bord d'administration
   const fetchOrders = async () => {
     const { data, error } = await supabase
       .from('orders')
@@ -238,13 +237,13 @@ export default function DocExpressApp() {
     if (!error) {
       fetchOrders();
     } else {
-      alert(`Erreur lors de la mise à jour : ${error.message}`);
+      alert(`Erreur de mise à jour : ${error.message}`);
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col">
-      {/* En-tête */}
+      {/* Navigation principale */}
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setStep('catalog')}>
@@ -262,15 +261,15 @@ export default function DocExpressApp() {
         </div>
       </header>
 
-      {/* Contenu principal */}
+      {/* Vues de l'application */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8">
         
-        {/* Step 1: Catalogue */}
+        {/* Étape 1 : Catalogue */}
         {step === 'catalog' && (
           <div>
             <div className="text-center mb-10">
               <h1 className="text-3xl font-extrabold sm:text-4xl mb-3">Vos documents administratifs en quelques clics</h1>
-              <p className="text-slate-400">Sélectionnez un modèle, remplissez le formulaire, validez et téléchargez votre PDF.</p>
+              <p className="text-slate-400">Sélectionnez un modèle, complétez le formulaire, payez et téléchargez votre PDF.</p>
             </div>
             <div className="grid md:grid-cols-3 gap-6">
               {DOCUMENT_TEMPLATES.map((doc) => (
@@ -297,14 +296,14 @@ export default function DocExpressApp() {
           </div>
         )}
 
-        {/* Step 2: Formulaire */}
+        {/* Étape 2 : Saisie des données */}
         {step === 'form' && selectedDoc && (
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl mx-auto">
             <button onClick={() => setStep('catalog')} className="flex items-center text-sm text-slate-400 hover:text-white mb-6">
               <ArrowLeft className="h-4 w-4 mr-1" /> Retour au catalogue
             </button>
             <h2 className="text-2xl font-bold mb-2">{selectedDoc.title}</h2>
-            <p className="text-slate-400 text-sm mb-6">Renseignez les informations requises ci-dessous.</p>
+            <p className="text-slate-400 text-sm mb-6">Renseignez les informations demandées.</p>
             
             <form onSubmit={handleSubmitForm} className="space-y-4">
               {selectedDoc.fields.map((field) => (
@@ -341,7 +340,7 @@ export default function DocExpressApp() {
           </div>
         )}
 
-        {/* Step 3: Revue & Spécimen */}
+        {/* Étape 3 : Aperçu avec Filigrane Spécimen */}
         {step === 'review' && selectedDoc && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -356,7 +355,6 @@ export default function DocExpressApp() {
               </button>
             </div>
 
-            {/* Aperçu Spécimen */}
             <div className="bg-white text-slate-950 p-8 rounded-xl shadow-2xl relative overflow-hidden min-h-[500px]">
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
                 <span className="text-6xl font-black text-slate-200/50 -rotate-45 tracking-widest uppercase">
@@ -378,7 +376,7 @@ export default function DocExpressApp() {
           </div>
         )}
 
-        {/* Step 4: Paiement Orange Money */}
+        {/* Étape 4 : Paiement Orange Money */}
         {step === 'payment' && selectedDoc && (
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md mx-auto">
             <h2 className="text-xl font-bold mb-4 flex items-center">
@@ -427,21 +425,21 @@ export default function DocExpressApp() {
           </div>
         )}
 
-        {/* Step 5: Attente de validation */}
+        {/* Étape 5 : Attente de validation */}
         {step === 'pending' && (
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center max-w-md mx-auto space-y-4">
             <Clock className="h-12 w-12 text-amber-500 mx-auto animate-pulse" />
             <h2 className="text-2xl font-bold">Vérification du paiement...</h2>
             <p className="text-sm text-slate-400">
-              Votre demande a été transmise. Dès confirmation de votre transfert Orange Money, le téléchargement s'activera automatiquement.
+              Votre demande est enregistrée. Dès que le transfert Orange Money est vérifié, le téléchargement sera débloqué automatiquement.
             </p>
             <div className="text-xs text-slate-500 bg-slate-950 p-3 rounded">
-              Référence : <span className="font-mono text-slate-300">{transactionRef}</span>
+              Référence SMS : <span className="font-mono text-slate-300">{transactionRef}</span>
             </div>
           </div>
         )}
 
-        {/* Step 6: Succès & Téléchargement PDF */}
+        {/* Étape 6 : Téléchargement PDF */}
         {step === 'success' && (
           <div className="space-y-6">
             <div className="bg-emerald-950/40 border border-emerald-800 p-4 rounded-xl flex justify-between items-center">
@@ -449,7 +447,7 @@ export default function DocExpressApp() {
                 <CheckCircle className="h-6 w-6 text-emerald-500" />
                 <div>
                   <h3 className="font-bold text-emerald-400">Paiement Validé !</h3>
-                  <p className="text-xs text-slate-300">Votre document est prêt à être téléchargé au format PDF.</p>
+                  <p className="text-xs text-slate-300">Votre document officiel est prêt.</p>
                 </div>
               </div>
               <button
@@ -462,11 +460,10 @@ export default function DocExpressApp() {
               </button>
             </div>
 
-            {/* Document Final Réel (Sans filigrane) */}
             <div ref={documentRef} className="bg-white text-slate-950 p-10 rounded-xl shadow-2xl min-h-[600px]">
               <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-center">
                 <h1 className="text-2xl font-bold uppercase">{selectedDoc?.title || currentOrder?.doc_title}</h1>
-                <span className="text-xs text-slate-500">DocExpress - Document Certifié</span>
+                <span className="text-xs text-slate-500">DocExpress - Document Officiel</span>
               </div>
               <div className="space-y-4 text-sm leading-relaxed">
                 {currentOrder?.form_data && Object.entries(currentOrder.form_data).map(([key, val]) => (
@@ -479,7 +476,7 @@ export default function DocExpressApp() {
           </div>
         )}
 
-        {/* Step 7: Espace Administration */}
+        {/* Étape 7 : Espace Administration */}
         {step === 'admin' && (
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
             <div className="flex justify-between items-center mb-6">
