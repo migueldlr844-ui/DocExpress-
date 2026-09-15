@@ -1,9 +1,8 @@
-import React from 'react';
 import './globals.css';
 
 export const metadata = {
   title: 'DocExpress',
-  description: 'Gestion et génération de documents',
+  description: 'Génération de documents administratifs',
 };
 
 export default function RootLayout({
@@ -13,9 +12,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
