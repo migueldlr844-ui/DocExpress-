@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 // ==========================================
-// 1. INITIALISATION SUPABASE (SÉCURISÉE)
+// 1. INITIALISATION SUPABASE (SÉCURISÉE & CONFORME NEXT.JS)
 // ==========================================
 const supabaseUrl = 
   process.env.NEXT_PUBLIC_SUPABASE_URL || 
@@ -22,7 +22,8 @@ const supabaseAnonKey =
   process.env.NEXT_SUPABASE_ANON_KEY || 
   'placeholder-key';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Utilisation de 'const' simple (sans export) pour éviter les erreurs de build Next.js
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ==========================================
 // 2. CONFIGURATION & TYPES
@@ -82,7 +83,7 @@ export default function DocExpressApp() {
     }
   }, [isAdminAuthenticated]);
 
-  // Écouter le changement de statut de la commande en cours (Sondage automatique)
+  // Écouter le changement de statut de la commande en cours
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (step === 'pending' && currentOrder?.id) {
@@ -312,7 +313,7 @@ export default function DocExpressApp() {
   };
 
   // ==========================================
-  // 5. RENDU DU DOCUMENT GÉNÉRÉ (MODELE DOCUMENT)
+  // 5. RENDU DU DOCUMENT GÉNÉRÉ
   // ==========================================
   const renderDocumentBody = () => {
     const data = currentOrder?.form_data || formData;
@@ -387,7 +388,6 @@ export default function DocExpressApp() {
           </div>
         )}
 
-        {/* Fallback générique pour les autres types */}
         {!['quittance', 'recu_vente', 'cv_pro'].includes(docId) && (
           <div className="space-y-4 text-sm">
             <p className="font-semibold">Détails enregistrés :</p>
@@ -523,7 +523,7 @@ export default function DocExpressApp() {
           </div>
         )}
 
-        {/* VUE 4 : PAIEMENT (ORANGE MONEY MANUEL) */}
+        {/* VUE 4 : PAIEMENT */}
         {step === 'payment' && selectedDoc && (
           <div className="max-w-md mx-auto bg-white p-6 rounded-xl border shadow-sm">
             <button 
@@ -601,7 +601,7 @@ export default function DocExpressApp() {
           </div>
         )}
 
-        {/* VUE 6 : SUCCÈS & TÉLÉCHARGEMENT (SUCCESS) */}
+        {/* VUE 6 : SUCCÈS & TÉLÉCHARGEMENT */}
         {step === 'success' && (
           <div className="max-w-2xl mx-auto bg-white p-6 rounded-xl border shadow-sm text-center">
             <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-2" />
@@ -625,7 +625,7 @@ export default function DocExpressApp() {
           </div>
         )}
 
-        {/* VUE 7 : ESPACE ADMINISTRATEUR (ADMIN) */}
+        {/* VUE 7 : ESPACE ADMIN */}
         {step === 'admin' && (
           <div className="max-w-3xl mx-auto bg-white p-6 rounded-xl border shadow-sm">
             <button 
