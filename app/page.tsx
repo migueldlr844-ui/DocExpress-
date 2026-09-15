@@ -1225,7 +1225,8 @@ export default function Home() {
                 <p style={{ color: '#D1D5DB !important', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande enregistrée dans Supabase pour le moment.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {sortedDocuments.map && orders.map((ord) => (
+                {sortedDocuments?.length > 0 && orders.map((ord) => (
+
                     <div key={ord.id} style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '10px', border: '1px solid #3A506B', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 'bold', color: '#4CC9F0 !important', fontSize: '0.85rem' }}>{ord.id}</span>
