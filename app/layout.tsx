@@ -1,4 +1,5 @@
 import React from 'react';
+import './globals.css';
 
 export const metadata = {
   title: 'DocExpress',
@@ -11,8 +12,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" style={{ margin: 0, padding: 0, width: '100%', maxWidth: '100vw', overflowX: 'hidden', backgroundColor: '#0B132B' }}>
-      <body style={{ margin: 0, padding: 0, width: '100%', maxWidth: '100vw', overflowX: 'hidden', backgroundColor: '#0B132B', minHeight: '100vh' }}>
+    <html lang="fr">
+      <body>
         {children}
       </body>
     </html>
