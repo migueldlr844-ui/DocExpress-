@@ -1,0 +1,23 @@
+import { createClient } from '@supabase/supabase-js';
+
+// Configuration Supabase compatible avec toutes tes variables Vercel
+const supabaseUrl = 
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 
+  process.env.SUPABASE_URL || 
+  'https://placeholder-url.supabase.co';
+
+const supabaseAnonKey = 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+  process.env.SUPABASE_ANON_KEY || 
+  'placeholder-key';
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Variables d'environnement et secrets centralisés
+export const envConfig = {
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  downloadLinkSecret: process.env.DOWNLOAD_LINK_SECRET || '',
+  sessionSecret: process.env.SESSION_SECRET || '',
+  adminPasswordHash: process.env.ADMIN_PASSWORD_HASH || '',
+  adminEmail: process.env.ADMIN_EMAIL || '',
+};
