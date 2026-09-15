@@ -759,7 +759,7 @@ export default function Home() {
         </button>
       </header>
 
-      {/* MENU DÉROULANT */}
+      {/* MENU DÉROULANT CORRIGÉ */}
       {isMenuOpen && (
         <div style={{
           position: 'fixed',
@@ -767,7 +767,7 @@ export default function Home() {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(11, 19, 43, 0.98)',
+          backgroundColor: '#0B132B',
           zIndex: 99,
           padding: '1.5rem',
           display: 'flex',
@@ -794,7 +794,7 @@ export default function Home() {
                 <div 
                   key={doc.id}
                   onClick={() => handleSelectDoc(doc)}
-                  style={{ backgroundColor: '#0B132B', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid #1C2541', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  style={{ backgroundColor: '#1C2541', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid #3A506B', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.95rem', color: '#FFF' }}>{doc.title}</span>
                   <span style={{ fontSize: '0.8rem', color: '#4CC9F0', fontWeight: 'bold' }}>{doc.price}</span>
                 </div>
