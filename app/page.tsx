@@ -759,17 +759,18 @@ export default function Home() {
         </button>
       </header>
 
-      {/* MENU DÉROULANT CORRIGÉ */}
+      {/* MENU MOBILE PLEIN ÉCRAN CORRIGÉ */}
       {isMenuOpen && (
         <div style={{
           position: 'fixed',
           top: '60px',
           left: 0,
-          right: 0,
-          bottom: 0,
+          width: '100vw',
+          height: 'calc(100vh - 60px)',
           backgroundColor: '#0B132B',
-          zIndex: 99,
+          zIndex: 9999,
           padding: '1.5rem',
+          boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
           gap: '1.5rem',
@@ -777,26 +778,57 @@ export default function Home() {
         }}>
           <button 
             onClick={() => { setStep('home'); setIsMenuOpen(false); }}
-            style={{ backgroundColor: '#1C2541', color: '#FFF', border: '1px solid #3A506B', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', textAlign: 'left', cursor: 'pointer' }}>
+            style={{ 
+              backgroundColor: '#1C2541', 
+              color: '#FFF', 
+              border: '1px solid #3A506B', 
+              padding: '1rem', 
+              borderRadius: '10px', 
+              fontWeight: 'bold', 
+              fontSize: '1rem', 
+              textAlign: 'left', 
+              cursor: 'pointer' 
+            }}>
             🏠 Page d'accueil
           </button>
 
           <button 
             onClick={() => { setStep('admin_login'); setIsMenuOpen(false); }}
-            style={{ backgroundColor: '#1C2541', color: '#F72585', border: '1px solid #F72585', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', textAlign: 'left', cursor: 'pointer' }}>
+            style={{ 
+              backgroundColor: '#1C2541', 
+              color: '#F72585', 
+              border: '1px solid #F72585', 
+              padding: '1rem', 
+              borderRadius: '10px', 
+              fontWeight: 'bold', 
+              fontSize: '1rem', 
+              textAlign: 'left', 
+              cursor: 'pointer' 
+            }}>
             🔒 Espace Administration
           </button>
 
           <div>
-            <h3 style={{ fontSize: '0.9rem', color: '#8D99AE', textTransform: 'uppercase', marginBottom: '0.8rem' }}>Tous les documents</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <h3 style={{ fontSize: '0.85rem', color: '#8D99AE', textTransform: 'uppercase', marginBottom: '0.8rem', letterSpacing: '1px' }}>
+              Tous les documents
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               {sortedDocuments.map((doc) => (
                 <div 
                   key={doc.id}
                   onClick={() => handleSelectDoc(doc)}
-                  style={{ backgroundColor: '#1C2541', padding: '0.8rem 1rem', borderRadius: '8px', border: '1px solid #3A506B', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.95rem', color: '#FFF' }}>{doc.title}</span>
-                  <span style={{ fontSize: '0.8rem', color: '#4CC9F0', fontWeight: 'bold' }}>{doc.price}</span>
+                  style={{ 
+                    backgroundColor: '#1C2541', 
+                    padding: '0.9rem 1rem', 
+                    borderRadius: '8px', 
+                    border: '1px solid #3A506B', 
+                    cursor: 'pointer', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center' 
+                  }}>
+                  <span style={{ fontSize: '0.95rem', color: '#FFF', fontWeight: '500' }}>{doc.title}</span>
+                  <span style={{ fontSize: '0.85rem', color: '#4CC9F0', fontWeight: 'bold' }}>{doc.price}</span>
                 </div>
               ))}
             </div>
