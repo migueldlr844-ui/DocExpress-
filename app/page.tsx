@@ -5,7 +5,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { createClient } from '@supabase/supabase-js';
 
-// --- INITIALISATION SUPABASE SÉCURISÉE ---
+// --- INITIALISATION SUPABASE ---
 const supabaseUrl = 
   process.env.NEXT_PUBLIC_SUPABASE_URL || 
   process.env.SUPABASE_URL || 
@@ -17,6 +17,22 @@ const supabaseAnonKey =
   'placeholder-key';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// --- COMPOSANT LOGO SVG PROFESSIONNEL ---
+const AppLogo = ({ size = 32 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="40" height="40" rx="10" fill="url(#logo_grad)" />
+    <path d="M13 11H23L29 17V29C29 30.1046 28.1046 31 27 31H13C11.8954 31 11 30.1046 11 29V13C11 11.8954 11.8954 11 13 11Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M22 11V18H29" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M21 21L17 26H21L19 30L24 25H20L21 21Z" fill="#F72585" stroke="#F72585" strokeWidth="0.5" strokeLinejoin="round"/>
+    <defs>
+      <linearGradient id="logo_grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#4361EE" />
+        <stop offset="1" stopColor="#4CC9F0" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
 
 // --- INTERFACES & CONFIGURATION ---
 interface FormField {
@@ -274,7 +290,7 @@ export default function Home() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 2500);
+    }, 2000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -648,9 +664,9 @@ export default function Home() {
   };
 
   return (
-    <div style={{ backgroundColor: '#0B132B', color: '#FFFFFF', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', position: 'relative' }}>
+    <div style={{ backgroundColor: '#0B132B', color: '#FFFFFF', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
       
-      {/* FORCE L'AFFICHAGE DU TEXTE EN BLANC SUR TOUTE L'APPLICATION */}
+      {/* ANIMATIONS & STYLE GLOBAL */}
       <style>{`
         body, main, div, h1, h2, h3, h4, p, span, label, input, select, textarea {
           color: #FFFFFF !important;
@@ -662,6 +678,24 @@ export default function Home() {
         ::placeholder {
           color: #9CA3AF !important;
           opacity: 1;
+        }
+        
+        @keyframes pulseGlow {
+          0% { box-shadow: 0 0 15px rgba(67, 97, 238, 0.4); }
+          50% { box-shadow: 0 0 35px rgba(76, 201, 240, 0.7); }
+          100% { box-shadow: 0 0 15px rgba(67, 97, 238, 0.4); }
+        }
+
+        .hero-logo-box {
+          animation: pulseGlow 3s infinite ease-in-out;
+        }
+
+        .card-hover {
+          transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .card-hover:hover {
+          transform: translateY(-3px);
+          border-color: #4CC9F0 !important;
         }
       `}</style>
 
@@ -682,40 +716,32 @@ export default function Home() {
           textAlign: 'center',
           padding: '2rem'
         }}>
+          <div style={{ marginBottom: '1rem' }}>
+            <AppLogo size={64} />
+          </div>
           <div style={{
-            fontSize: '2.5rem',
+            fontSize: '2.2rem',
             fontWeight: '900',
             letterSpacing: '3px',
             color: '#4CC9F0 !important',
             marginBottom: '0.2rem',
-            textTransform: 'uppercase',
-            textShadow: '0 0 20px rgba(76, 201, 240, 0.4)'
+            textTransform: 'uppercase'
           }}>
             DOCEXPRESS
           </div>
           <p style={{
-            fontSize: '0.75rem',
-            letterSpacing: '2px',
-            color: '#F72585 !important',
-            fontWeight: 'bold',
-            textTransform: 'uppercase',
-            marginBottom: '1rem'
-          }}>
-            PAR DESIRE ATANGANA ATANGANA
-          </p>
-          <p style={{
-            fontSize: '1.2rem',
+            fontSize: '1rem',
             color: '#D1D5DB !important',
-            letterSpacing: '2px',
+            letterSpacing: '1px',
             fontWeight: '300',
             margin: 0
           }}>
-            BIENVENUE
+            Générateur de documents officiels
           </p>
           <div style={{
             marginTop: '2rem',
-            width: '40px',
-            height: '40px',
+            width: '35px',
+            height: '35px',
             border: '3px solid #1C2541',
             borderTop: '3px solid #4CC9F0',
             borderRadius: '50%'
@@ -723,504 +749,525 @@ export default function Home() {
         </div>
       )}
 
-      {/* EN-TÊTE FIXE */}
-      <header style={{ padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1C2541', position: 'sticky', top: 0, backgroundColor: '#0B132B', zIndex: 100 }}>
-        <div>
-          <span style={{ fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '1px', color: '#4CC9F0 !important', cursor: 'pointer' }} onClick={() => { setStep('home'); setIsMenuOpen(false); }}>DOCEXPRESS</span>
-          <p style={{ fontSize: '0.65rem', color: '#F72585 !important', fontWeight: 'bold', margin: '0.1rem 0 0 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            par DESIRE ATANGANA ATANGANA
-          </p>
-        </div>
+      <div>
+        {/* EN-TÊTE FIXE AVEC LOGO */}
+        <header style={{ padding: '0.9rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1C2541', position: 'sticky', top: 0, backgroundColor: 'rgba(11, 19, 43, 0.95)', backdropFilter: 'blur(10px)', zIndex: 100 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }} onClick={() => { setStep('home'); setIsMenuOpen(false); }}>
+            <AppLogo size={34} />
+            <span style={{ fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '1px', color: '#FFFFFF !important' }}>DOCEXPRESS</span>
+          </div>
 
-        <button 
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          aria-label="Menu"
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '8px',
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Menu"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '8px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-around',
+              width: '32px',
+              height: '32px',
+              zIndex: 101
+            }}>
+            <span style={{
+              width: '100%',
+              height: '3px',
+              backgroundColor: '#4CC9F0',
+              borderRadius: '2px',
+              transition: 'all 0.3s ease',
+              transform: isMenuOpen ? 'rotate(45deg) translate(6px, 6px)' : 'rotate(0)'
+            }} />
+            <span style={{
+              width: '100%',
+              height: '3px',
+              backgroundColor: '#4CC9F0',
+              borderRadius: '2px',
+              transition: 'all 0.3s ease',
+              opacity: isMenuOpen ? 0 : 1
+            }} />
+            <span style={{
+              width: '100%',
+              height: '3px',
+              backgroundColor: '#4CC9F0',
+              borderRadius: '2px',
+              transition: 'all 0.3s ease',
+              transform: isMenuOpen ? 'rotate(-45deg) translate(6px, -6px)' : 'rotate(0)'
+            }} />
+          </button>
+        </header>
+
+        {/* MENU MOBILE PLEIN ÉCRAN */}
+        {isMenuOpen && (
+          <div style={{
+            position: 'fixed',
+            top: '60px',
+            left: 0,
+            width: '100vw',
+            height: 'calc(100vh - 60px)',
+            backgroundColor: '#0B132B',
+            zIndex: 9999,
+            padding: '1.5rem',
+            boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'space-around',
-            width: '32px',
-            height: '32px',
-            zIndex: 101
+            gap: '1.5rem',
+            overflowY: 'auto'
           }}>
-          <span style={{
-            width: '100%',
-            height: '3px',
-            backgroundColor: '#4CC9F0',
-            borderRadius: '2px',
-            transition: 'all 0.3s ease',
-            transform: isMenuOpen ? 'rotate(45deg) translate(6px, 6px)' : 'rotate(0)'
-          }} />
-          <span style={{
-            width: '100%',
-            height: '3px',
-            backgroundColor: '#4CC9F0',
-            borderRadius: '2px',
-            transition: 'all 0.3s ease',
-            opacity: isMenuOpen ? 0 : 1
-          }} />
-          <span style={{
-            width: '100%',
-            height: '3px',
-            backgroundColor: '#4CC9F0',
-            borderRadius: '2px',
-            transition: 'all 0.3s ease',
-            transform: isMenuOpen ? 'rotate(-45deg) translate(6px, -6px)' : 'rotate(0)'
-          }} />
-        </button>
-      </header>
-
-      {/* MENU MOBILE PLEIN ÉCRAN */}
-      {isMenuOpen && (
-        <div style={{
-          position: 'fixed',
-          top: '60px',
-          left: 0,
-          width: '100vw',
-          height: 'calc(100vh - 60px)',
-          backgroundColor: '#0B132B',
-          zIndex: 9999,
-          padding: '1.5rem',
-          boxSizing: 'border-box',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1.5rem',
-          overflowY: 'auto'
-        }}>
-          <button 
-            onClick={() => { setStep('home'); setIsMenuOpen(false); }}
-            style={{ 
-              backgroundColor: '#1C2541', 
-              color: '#FFFFFF !important', 
-              border: '1px solid #3A506B', 
-              padding: '1rem', 
-              borderRadius: '10px', 
-              fontWeight: 'bold', 
-              fontSize: '1rem', 
-              textAlign: 'left', 
-              cursor: 'pointer' 
-            }}>
-            🏠 Page d'accueil
-          </button>
-
-          <button 
-            onClick={() => { setStep('admin_login'); setIsMenuOpen(false); }}
-            style={{ 
-              backgroundColor: '#1C2541', 
-              color: '#F72585 !important', 
-              border: '1px solid #F72585', 
-              padding: '1rem', 
-              borderRadius: '10px', 
-              fontWeight: 'bold', 
-              fontSize: '1rem', 
-              textAlign: 'left', 
-              cursor: 'pointer' 
-            }}>
-            🔒 Espace Administration
-          </button>
-
-          <div>
-            <h3 style={{ fontSize: '0.85rem', color: '#D1D5DB !important', textTransform: 'uppercase', marginBottom: '0.8rem', letterSpacing: '1px' }}>
-              Tous les documents
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              {sortedDocuments.map((doc) => (
-                <div 
-                  key={doc.id}
-                  onClick={() => handleSelectDoc(doc)}
-                  style={{ 
-                    backgroundColor: '#1C2541', 
-                    padding: '0.9rem 1rem', 
-                    borderRadius: '8px', 
-                    border: '1px solid #3A506B', 
-                    cursor: 'pointer', 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center' 
-                  }}>
-                  <span style={{ fontSize: '0.95rem', color: '#FFFFFF !important', fontWeight: '500' }}>{doc.title}</span>
-                  <span style={{ fontSize: '0.85rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>{doc.price}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <main style={{ maxWidth: '600px', margin: '0 auto', padding: '1.5rem' }}>
-
-        {/* BARRE DE RETOUR */}
-        {step !== 'home' && (
-          <div style={{ marginBottom: '1rem' }}>
             <button 
-              onClick={handleBack}
-              style={{ background: 'none', border: 'none', color: '#4CC9F0 !important', fontSize: '0.9rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 'bold' }}>
-              ⬅️ Page précédente
-            </button>
-          </div>
-        )}
-
-        {/* 1. ACCUEIL */}
-        {step === 'home' && (
-          <div>
-            <section style={{ textAlign: 'center', padding: '1.5rem 0' }}>
-              <div style={{
-                display: 'inline-block',
-                backgroundColor: 'rgba(247, 37, 133, 0.15)',
-                border: '1px solid #F72585',
-                color: '#F72585 !important',
-                padding: '0.4rem 0.9rem',
-                borderRadius: '20px',
-                fontSize: '0.75rem',
-                fontWeight: 'bold',
-                marginBottom: '1.2rem',
-                letterSpacing: '1px'
+              onClick={() => { setStep('home'); setIsMenuOpen(false); }}
+              style={{ 
+                backgroundColor: '#1C2541', 
+                color: '#FFFFFF !important', 
+                border: '1px solid #3A506B', 
+                padding: '1rem', 
+                borderRadius: '10px', 
+                fontWeight: 'bold', 
+                fontSize: '1rem', 
+                textAlign: 'left', 
+                cursor: 'pointer' 
               }}>
-                UNE CRÉATION DE DESIRE ATANGANA ATANGANA
-              </div>
-              
-              <h1 style={{ fontSize: '1.8rem', fontWeight: '800', lineHeight: 1.3, marginBottom: '0.8rem', color: '#FFFFFF !important' }}>
-                Vos documents professionnels rédigés sur mesure.
-              </h1>
-              
-              <p style={{ color: '#D1D5DB !important', fontSize: '0.95rem', marginBottom: '1.8rem' }}>
-                Transformez vos informations en documents officiels instantanément.
-              </p>
-            </section>
+              🏠 Page d'accueil
+            </button>
 
-            <section>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
-                <h2 style={{ fontSize: '1.2rem', margin: 0, color: '#FFFFFF !important', fontWeight: 'bold' }}>🔥 Choisissez votre document</h2>
-                <span style={{ fontSize: '0.75rem', color: '#4CC9F0 !important', fontStyle: 'italic', fontWeight: '600' }}>Du - au + coûteux</span>
-              </div>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <button 
+              onClick={() => { setStep('admin_login'); setIsMenuOpen(false); }}
+              style={{ 
+                backgroundColor: '#1C2541', 
+                color: '#F72585 !important', 
+                border: '1px solid #F72585', 
+                padding: '1rem', 
+                borderRadius: '10px', 
+                fontWeight: 'bold', 
+                fontSize: '1rem', 
+                textAlign: 'left', 
+                cursor: 'pointer' 
+              }}>
+              🔒 Espace Administration
+            </button>
+
+            <div>
+              <h3 style={{ fontSize: '0.85rem', color: '#D1D5DB !important', textTransform: 'uppercase', marginBottom: '0.8rem', letterSpacing: '1px' }}>
+                Tous les documents
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 {sortedDocuments.map((doc) => (
                   <div 
                     key={doc.id}
                     onClick={() => handleSelectDoc(doc)}
-                    style={{ backgroundColor: '#1C2541', borderRadius: '12px', padding: '1.2rem', border: '1px solid #3A506B', cursor: 'pointer' }}>
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#4CC9F0 !important', fontWeight: 'bold', letterSpacing: '0.5px' }}>{doc.category}</span>
-                      {doc.badge && (
-                        <span style={{ backgroundColor: '#4361EE', color: '#FFFFFF !important', fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>
-                          {doc.badge}
-                        </span>
+                    style={{ 
+                      backgroundColor: '#1C2541', 
+                      padding: '0.9rem 1rem', 
+                      borderRadius: '8px', 
+                      border: '1px solid #3A506B', 
+                      cursor: 'pointer', 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center' 
+                    }}>
+                    <span style={{ fontSize: '0.95rem', color: '#FFFFFF !important', fontWeight: '500' }}>{doc.title}</span>
+                    <span style={{ fontSize: '0.85rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>{doc.price}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <main style={{ maxWidth: '600px', margin: '0 auto', padding: '1.5rem' }}>
+
+          {/* BARRE DE RETOUR */}
+          {step !== 'home' && (
+            <div style={{ marginBottom: '1rem' }}>
+              <button 
+                onClick={handleBack}
+                style={{ background: 'none', border: 'none', color: '#4CC9F0 !important', fontSize: '0.9rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 'bold' }}>
+                ⬅️ Page précédente
+              </button>
+            </div>
+          )}
+
+          {/* 1. ACCUEIL DYNAMIQUE */}
+          {step === 'home' && (
+            <div>
+              <section style={{ textAlign: 'center', padding: '1rem 0 2rem 0', position: 'relative' }}>
+                
+                {/* LOGO HERO ANIMÉ */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
+                  <div className="hero-logo-box" style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '20px', border: '1px solid #3A506B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <AppLogo size={52} />
+                  </div>
+                </div>
+
+                <h1 style={{ fontSize: '2rem', fontWeight: '800', lineHeight: 1.25, marginBottom: '0.8rem', color: '#FFFFFF !important' }}>
+                  Vos documents officiels prêts en 2 minutes.
+                </h1>
+                
+                <p style={{ color: '#D1D5DB !important', fontSize: '0.95rem', marginBottom: '1.8rem', lineHeight: '1.5' }}>
+                  Remplissez votre formulaire, visualisez le résultat et téléchargez votre fichier au format PDF certifié.
+                </p>
+
+                {/* BANDEROLE D'AVANTAGES DYNAMIQUES */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '2rem' }}>
+                  <div style={{ backgroundColor: '#1C2541', padding: '0.75rem 0.5rem', borderRadius: '10px', border: '1px solid #3A506B', textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.2rem', display: 'block' }}>⚡</span>
+                    <span style={{ fontSize: '0.7rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>Instantané</span>
+                  </div>
+                  <div style={{ backgroundColor: '#1C2541', padding: '0.75rem 0.5rem', borderRadius: '10px', border: '1px solid #3A506B', textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.2rem', display: 'block' }}>🔒</span>
+                    <span style={{ fontSize: '0.7rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>Conforme</span>
+                  </div>
+                  <div style={{ backgroundColor: '#1C2541', padding: '0.75rem 0.5rem', borderRadius: '10px', border: '1px solid #3A506B', textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.2rem', display: 'block' }}>📄</span>
+                    <span style={{ fontSize: '0.7rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>Format PDF</span>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                  <h2 style={{ fontSize: '1.2rem', margin: 0, color: '#FFFFFF !important', fontWeight: 'bold' }}>📋 Choisissez votre document</h2>
+                  <span style={{ fontSize: '0.75rem', color: '#4CC9F0 !important', fontWeight: '600' }}>Prix croissants</span>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {sortedDocuments.map((doc) => (
+                    <div 
+                      key={doc.id}
+                      onClick={() => handleSelectDoc(doc)}
+                      className="card-hover"
+                      style={{ backgroundColor: '#1C2541', borderRadius: '14px', padding: '1.2rem', border: '1px solid #3A506B', cursor: 'pointer' }}>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#4CC9F0 !important', fontWeight: 'bold', letterSpacing: '0.5px' }}>{doc.category}</span>
+                        {doc.badge && (
+                          <span style={{ backgroundColor: '#4361EE', color: '#FFFFFF !important', fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>
+                            {doc.badge}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <h3 style={{ fontSize: '1.15rem', margin: '0.4rem 0', color: '#FFFFFF !important', fontWeight: 'bold' }}>{doc.title}</h3>
+                      <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', margin: '0 0 1rem 0', lineHeight: '1.4' }}>{doc.desc}</p>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 'bold', color: '#FFFFFF !important', fontSize: '1rem' }}>{doc.price}</span>
+                        <span style={{ color: '#4CC9F0 !important', fontWeight: 'bold', fontSize: '0.9rem' }}>Créer le document →</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* 2. FORMULAIRE DYNAMIQUE */}
+          {step === 'form' && selectedDoc && (
+            <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <span style={{ fontSize: '0.85rem', color: '#4CC9F0 !important', fontWeight: 'bold', display: 'block', marginBottom: '0.2rem' }}>
+                  Création de votre {selectedDoc.title}
+                </span>
+                <h2 style={{ fontSize: '1.2rem', margin: '0 0 0.8rem 0', color: '#FFFFFF !important', fontWeight: 'bold' }}>Étape {formStep} sur 3</h2>
+                <div style={{ backgroundColor: '#0B132B', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ backgroundColor: '#4361EE', width: `${(formStep / 3) * 100}%`, height: '100%', transition: 'width 0.3s' }}></div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {selectedDoc.fields
+                  .filter(f => f.step === formStep)
+                  .map(field => (
+                    <div key={field.id}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>
+                        {field.label} {field.required && '*'}
+                      </label>
+                      {field.type === 'textarea' ? (
+                        <textarea
+                          value={formData[field.id] || ''}
+                          onChange={(e) => handleInputChange(field.id, e.target.value)}
+                          placeholder={field.placeholder}
+                          style={{ ...inputStyle, minHeight: '90px' }}
+                        />
+                      ) : field.type === 'select' ? (
+                        <select
+                          value={formData[field.id] || ''}
+                          onChange={(e) => handleInputChange(field.id, e.target.value)}
+                          style={inputStyle}>
+                          <option value="">Sélectionnez...</option>
+                          {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      ) : (
+                        <input
+                          type={field.type}
+                          value={formData[field.id] || ''}
+                          onChange={(e) => handleInputChange(field.id, e.target.value)}
+                          placeholder={field.placeholder}
+                          style={inputStyle}
+                        />
                       )}
                     </div>
-                    
-                    <h3 style={{ fontSize: '1.15rem', margin: '0.4rem 0', color: '#FFFFFF !important', fontWeight: 'bold' }}>{doc.title}</h3>
-                    <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', margin: '0 0 1rem 0', lineHeight: '1.4' }}>{doc.desc}</p>
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 'bold', color: '#FFFFFF !important', fontSize: '1rem' }}>{doc.price}</span>
-                      <span style={{ color: '#4CC9F0 !important', fontWeight: 'bold', fontSize: '0.9rem' }}>Créer →</span>
+                  ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                <button onClick={handleBack} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFFFFF !important', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Retour
+                </button>
+                
+                {formStep < 3 ? (
+                  <button onClick={() => setFormStep(formStep + 1)} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    Continuer →
+                  </button>
+                ) : (
+                  <button onClick={() => setStep('review')} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    Vérifier mes infos →
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 3. ÉCRAN DE VÉRIFICATION */}
+          {step === 'review' && selectedDoc && (
+            <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+              <h2 style={{ fontSize: '1.2rem', color: '#4CC9F0 !important', marginBottom: '1rem', fontWeight: 'bold' }}>🔍 Vérifiez vos informations</h2>
+              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem' }}>
+                {selectedDoc.fields.map(field => (
+                  formData[field.id] ? (
+                    <div key={field.id} style={{ borderBottom: '1px solid #1C2541', paddingBottom: '0.4rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#D1D5DB !important', display: 'block' }}>{field.label}</span>
+                      <span style={{ fontSize: '0.9rem', color: '#FFFFFF !important', fontWeight: 'bold' }}>{formData[field.id]}</span>
                     </div>
-                  </div>
+                  ) : null
                 ))}
               </div>
-            </section>
-          </div>
-        )}
 
-        {/* 2. FORMULAIRE DYNAMIQUE */}
-        {step === 'form' && selectedDoc && (
-          <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
-            <div style={{ marginBottom: '1.5rem' }}>
-              <span style={{ fontSize: '0.85rem', color: '#4CC9F0 !important', fontWeight: 'bold', display: 'block', marginBottom: '0.2rem' }}>
-                Création de votre {selectedDoc.title}
-              </span>
-              <h2 style={{ fontSize: '1.2rem', margin: '0 0 0.8rem 0', color: '#FFFFFF !important', fontWeight: 'bold' }}>Étape {formStep} sur 3</h2>
-              <div style={{ backgroundColor: '#0B132B', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ backgroundColor: '#4361EE', width: `${(formStep / 3) * 100}%`, height: '100%', transition: 'width 0.3s' }}></div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button onClick={() => setStep('form')} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFFFFF !important', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  ✏️ Modifier
+                </button>
+                <button onClick={handleProcessDocument} disabled={isGeneratingContent} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {isGeneratingContent ? 'Génération...' : '🚀 Générer mon document →'}
+                </button>
               </div>
             </div>
+          )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {selectedDoc.fields
-                .filter(f => f.step === formStep)
-                .map(field => (
-                  <div key={field.id}>
-                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>
-                      {field.label} {field.required && '*'}
-                    </label>
-                    {field.type === 'textarea' ? (
-                      <textarea
-                        value={formData[field.id] || ''}
-                        onChange={(e) => handleInputChange(field.id, e.target.value)}
-                        placeholder={field.placeholder}
-                        style={{ ...inputStyle, minHeight: '90px' }}
-                      />
-                    ) : field.type === 'select' ? (
-                      <select
-                        value={formData[field.id] || ''}
-                        onChange={(e) => handleInputChange(field.id, e.target.value)}
-                        style={inputStyle}>
-                        <option value="">Sélectionnez...</option>
-                        {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                      </select>
-                    ) : (
-                      <input
-                        type={field.type}
-                        value={formData[field.id] || ''}
-                        onChange={(e) => handleInputChange(field.id, e.target.value)}
-                        placeholder={field.placeholder}
-                        style={inputStyle}
-                      />
-                    )}
-                  </div>
-                ))}
-            </div>
-
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-              <button onClick={handleBack} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFFFFF !important', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                Retour
-              </button>
+          {/* 4. APERÇU SPÉCIMEN */}
+          {step === 'preview' && selectedDoc && (
+            <div>
+              <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', textAlign: 'center', color: '#FFFFFF !important', fontWeight: 'bold' }}>Aperçu de votre document</h2>
               
-              {formStep < 3 ? (
-                <button onClick={() => setFormStep(formStep + 1)} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  Continuer →
+              <div style={{ backgroundColor: '#FFFFFF', padding: '1.5rem', borderRadius: '8px', position: 'relative', overflow: 'hidden', minHeight: '350px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontFamily: "'Times New Roman', Times, serif" }}>
+                <style>{`
+                  .preview-document * {
+                    color: #000000 !important;
+                  }
+                `}</style>
+
+                <div style={{ position: 'absolute', top: '35%', left: '5%', right: '5%', transform: 'rotate(-25deg)', fontSize: '2.2rem', fontWeight: '900', color: 'rgba(230, 57, 70, 0.18) !important', pointerEvents: 'none', userSelect: 'none', textAlign: 'center', border: '4px dashed rgba(230, 57, 70, 0.25)', padding: '10px' }}>
+                  SPÉCIMEN - DOCEXPRESS
+                </div>
+
+                <div className="preview-document" style={{ fontSize: '0.85rem', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: generatedBody }} />
+              </div>
+
+              <div style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+                <div>
+                  <span style={{ fontSize: '0.9rem', display: 'block', color: '#FFFFFF !important', fontWeight: 'bold' }}>{selectedDoc.title}</span>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#4CC9F0 !important' }}>{selectedDoc.price}</span>
+                </div>
+                <button onClick={() => setStep('payment')} style={{ backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem 1.2rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Payer pour télécharger →
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* 5. PAIEMENT MANUEL ORANGE MONEY */}
+          {step === 'payment' && selectedDoc && (
+            <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+              <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#FFFFFF !important', fontWeight: 'bold' }}>Paiement Orange Money</h2>
+              <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', marginBottom: '1rem' }}>
+                Effectuez un transfert du montant exact vers le numéro ci-dessous, puis saisissez les informations de votre SMS de confirmation.
+              </p>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid #3A506B', marginBottom: '1.5rem', color: '#FFFFFF !important' }}>
+                <span style={{ fontWeight: 'bold' }}>{selectedDoc.title}</span>
+                <span style={{ fontWeight: 'bold', color: '#4CC9F0 !important' }}>{selectedDoc.price}</span>
+              </div>
+
+              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FF7900', marginBottom: '1.5rem' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FF7900 !important' }}>🟠 Numéro Orange Money</span>
+                <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.2rem', letterSpacing: '1px', color: '#FFFFFF !important' }}>+237 655 06 93 96</p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>Votre Numéro Expéditeur (Orange Money)</label>
+                  <input 
+                    type="text" 
+                    value={senderPhoneInput} 
+                    onChange={(e) => setSenderPhoneInput(e.target.value)} 
+                    placeholder="Ex: 655XXXXXX"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>Référence de Transaction SMS</label>
+                  <input 
+                    type="text" 
+                    value={transactionRefInput} 
+                    onChange={(e) => setTransactionRefInput(e.target.value)} 
+                    placeholder="Ex: PP260914.XXXX.XXXXX"
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+
+              <button 
+                onClick={handleInitiatePayment} 
+                disabled={isSubmittingPayment}
+                style={{ width: '100%', backgroundColor: '#FF7900', color: '#FFFFFF !important', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
+                {isSubmittingPayment ? 'Enregistrement en cours...' : '✅ VALIDER MA COMMANDE'}
+              </button>
+            </div>
+          )}
+
+          {/* 6. ÉCRAN D'ATTENTE CLIENT */}
+          {step === 'pending' && currentOrder && (
+            <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
+              <div style={{ width: '50px', height: '50px', border: '4px solid #1C2541', borderTop: '4px solid #4CC9F0', borderRadius: '50%', margin: '0 auto 1.5rem auto' }} />
+              
+              <h2 style={{ fontSize: '1.3rem', color: '#4CC9F0 !important', marginBottom: '0.5rem', fontWeight: 'bold' }}>Vérification du paiement en cours...</h2>
+              <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', marginBottom: '1.5rem' }}>
+                Votre demande a bien été transmise dans Supabase. Dès confirmation de votre dépôt par l'administration, votre document PDF sera automatiquement disponible ci-dessous.
+              </p>
+
+              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', textAlign: 'left', fontSize: '0.85rem' }}>
+                <p style={{ margin: '0 0 0.5rem 0', color: '#D1D5DB !important' }}>ID Commande Supabase : <strong style={{ color: '#FFFFFF !important' }}>{currentOrder.id}</strong></p>
+                <p style={{ margin: '0 0 0.5rem 0', color: '#D1D5DB !important' }}>Document : <strong style={{ color: '#FFFFFF !important' }}>{currentOrder.docTitle}</strong></p>
+                <p style={{ margin: '0 0 0.5rem 0', color: '#D1D5DB !important' }}>Expéditeur : <strong style={{ color: '#FFFFFF !important' }}>{currentOrder.senderPhone}</strong></p>
+                <p style={{ margin: 0, color: '#D1D5DB !important' }}>Montant : <strong style={{ color: '#4CC9F0 !important' }}>{currentOrder.price}</strong></p>
+              </div>
+            </div>
+          )}
+
+          {/* 7. TÉLÉCHARGEMENT FINAL */}
+          {step === 'success' && (selectedDoc || currentOrder) && (
+            <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
+              <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0 !important', marginBottom: '0.5rem', fontWeight: 'bold' }}>Paiement Confirmé !</h2>
+              <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', marginBottom: '1.5rem' }}>
+                Votre document a été validé. Vous pouvez le télécharger au format PDF officiel.
+              </p>
+
+              {/* ELEMENT MASQUÉ POUR IMPRESSION PDF */}
+              <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFFFFF', color: '#000000', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
+                  <div className="preview-document" style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: currentOrder?.generatedBody || generatedBody }} />
+                </div>
+              </div>
+
+              <button 
+                onClick={generatePDF}
+                disabled={isGeneratingPDF}
+                style={{ width: '100%', backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1rem' }}>
+                {isGeneratingPDF ? 'Téléchargement...' : '⬇️ TÉLÉCHARGER MON PDF'}
+              </button>
+
+              <button 
+                onClick={() => setStep('home')}
+                style={{ width: '100%', backgroundColor: '#0B132B', color: '#D1D5DB !important', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer' }}>
+                🏠 Créer un autre document
+              </button>
+            </div>
+          )}
+
+          {/* 8. CONNEXION ADMIN */}
+          {step === 'admin_login' && (
+            <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+              <h2 style={{ fontSize: '1.2rem', color: '#F72585 !important', marginBottom: '1rem', fontWeight: 'bold' }}>🔒 Espace Administration</h2>
+              <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>Code PIN Accès</label>
+                  <input 
+                    type="password" 
+                    value={adminPinInput} 
+                    onChange={(e) => setAdminPinInput(e.target.value)} 
+                    placeholder="Entrez le code PIN (ex: 1234)"
+                    style={inputStyle}
+                  />
+                </div>
+                {adminPinError && <p style={{ color: '#E63946 !important', fontSize: '0.8rem', margin: 0 }}>Code PIN incorrect.</p>}
+                <button type="submit" style={{ backgroundColor: '#F72585', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Se connecter
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* 9. DASHBOARD ADMIN */}
+          {step === 'admin_dashboard' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.2rem', color: '#F72585 !important', margin: 0, fontWeight: 'bold' }}>📊 Suivi des Paiements Supabase</h2>
+                <button onClick={() => setStep('home')} style={{ backgroundColor: '#0B132B', color: '#FFFFFF !important', border: '1px solid #3A506B', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                  Quitter
+                </button>
+              </div>
+
+              {orders.length === 0 ? (
+                <p style={{ color: '#D1D5DB !important', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande enregistrée dans Supabase pour le moment.</p>
               ) : (
-                <button onClick={() => setStep('review')} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  Vérifier mes infos →
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {sortedDocuments.map && orders.map((ord) => (
+                    <div key={ord.id} style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '10px', border: '1px solid #3A506B', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 'bold', color: '#4CC9F0 !important', fontSize: '0.85rem' }}>{ord.id}</span>
+                        <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: ord.status === 'APPROVED' ? 'rgba(37, 211, 102, 0.2)' : 'rgba(247, 37, 133, 0.2)', color: ord.status === 'APPROVED' ? '#25D366 !important' : '#F72585 !important', fontWeight: 'bold' }}>
+                          {ord.status === 'APPROVED' ? 'VALIDE' : 'EN ATTENTE'}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: '0.85rem', color: '#FFFFFF !important' }}>
+                        <p style={{ margin: '0 0 0.2rem 0' }}>Document : <strong>{ord.docTitle}</strong></p>
+                        <p style={{ margin: '0 0 0.2rem 0' }}>Montant : <strong>{ord.price}</strong></p>
+                        <p style={{ margin: '0 0 0.2rem 0' }}>Expéditeur OM : <strong>{ord.senderPhone}</strong></p>
+                        <p style={{ margin: 0 }}>Réf SMS : <strong>{ord.transactionRef || 'N/A'}</strong> ({ord.createdAt})</p>
+                      </div>
+
+                      {ord.status === 'PENDING' && (
+                        <button 
+                          onClick={() => handleApproveOrder(ord.id)}
+                          style={{ marginTop: '0.5rem', backgroundColor: '#25D366', color: '#FFFFFF !important', border: 'none', padding: '0.6rem', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>
+                          ✅ Valider le paiement
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* 3. ÉCRAN DE VÉRIFICATION */}
-        {step === 'review' && selectedDoc && (
-          <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
-            <h2 style={{ fontSize: '1.2rem', color: '#4CC9F0 !important', marginBottom: '1rem', fontWeight: 'bold' }}>🔍 Vérifiez vos informations</h2>
-            <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem' }}>
-              {selectedDoc.fields.map(field => (
-                formData[field.id] ? (
-                  <div key={field.id} style={{ borderBottom: '1px solid #1C2541', paddingBottom: '0.4rem' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#D1D5DB !important', display: 'block' }}>{field.label}</span>
-                    <span style={{ fontSize: '0.9rem', color: '#FFFFFF !important', fontWeight: 'bold' }}>{formData[field.id]}</span>
-                  </div>
-                ) : null
-              ))}
-            </div>
+        </main>
+      </div>
 
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button onClick={() => setStep('form')} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFFFFF !important', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                ✏️ Modifier
-              </button>
-              <button onClick={handleProcessDocument} disabled={isGeneratingContent} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                {isGeneratingContent ? 'Génération...' : '🚀 Générer mon document →'}
-              </button>
-            </div>
-          </div>
-        )}
+      {/* FOOTER DISCRET ET ÉLÉGANT */}
+      <footer style={{ borderTop: '1px solid #1C2541', padding: '1.2rem', textAlign: 'center', backgroundColor: '#0B132B', marginTop: '2rem' }}>
+        <p style={{ fontSize: '0.75rem', color: '#6B7280 !important', margin: 0 }}>
+          © 2026 DocExpress. Tous droits réservés.
+        </p>
+        <p style={{ fontSize: '0.65rem', color: '#4B5563 !important', margin: '0.3rem 0 0 0' }}>
+          Développé avec soin par Désiré Atangana Atangana
+        </p>
+      </footer>
 
-        {/* 4. APERÇU SPÉCIMEN */}
-        {step === 'preview' && selectedDoc && (
-          <div>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', textAlign: 'center', color: '#FFFFFF !important', fontWeight: 'bold' }}>Aperçu de votre document</h2>
-            
-            <div style={{ backgroundColor: '#FFFFFF', padding: '1.5rem', borderRadius: '8px', position: 'relative', overflow: 'hidden', minHeight: '350px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontFamily: "'Times New Roman', Times, serif" }}>
-              <style>{`
-                .preview-document * {
-                  color: #000000 !important;
-                }
-              `}</style>
-
-              <div style={{ position: 'absolute', top: '35%', left: '5%', right: '5%', transform: 'rotate(-25deg)', fontSize: '2.2rem', fontWeight: '900', color: 'rgba(230, 57, 70, 0.18) !important', pointerEvents: 'none', userSelect: 'none', textAlign: 'center', border: '4px dashed rgba(230, 57, 70, 0.25)', padding: '10px' }}>
-                SPÉCIMEN - DOCEXPRESS
-              </div>
-
-              <div className="preview-document" style={{ fontSize: '0.85rem', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: generatedBody }} />
-            </div>
-
-            <div style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
-              <div>
-                <span style={{ fontSize: '0.9rem', display: 'block', color: '#FFFFFF !important', fontWeight: 'bold' }}>{selectedDoc.title}</span>
-                <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#4CC9F0 !important' }}>{selectedDoc.price}</span>
-              </div>
-              <button onClick={() => setStep('payment')} style={{ backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem 1.2rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                Payer pour télécharger →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 5. PAIEMENT MANUEL ORANGE MONEY */}
-        {step === 'payment' && selectedDoc && (
-          <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#FFFFFF !important', fontWeight: 'bold' }}>Paiement Orange Money</h2>
-            <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', marginBottom: '1rem' }}>
-              Effectuez un transfert du montant exact vers le numéro ci-dessous, puis saisissez les informations de votre SMS de confirmation.
-            </p>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid #3A506B', marginBottom: '1.5rem', color: '#FFFFFF !important' }}>
-              <span style={{ fontWeight: 'bold' }}>{selectedDoc.title}</span>
-              <span style={{ fontWeight: 'bold', color: '#4CC9F0 !important' }}>{selectedDoc.price}</span>
-            </div>
-
-            <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FF7900', marginBottom: '1.5rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FF7900 !important' }}>🟠 Numéro Orange Money</span>
-              <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.2rem', letterSpacing: '1px', color: '#FFFFFF !important' }}>+237 655 06 93 96</p>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>Votre Numéro Expéditeur (Orange Money)</label>
-                <input 
-                  type="text" 
-                  value={senderPhoneInput} 
-                  onChange={(e) => setSenderPhoneInput(e.target.value)} 
-                  placeholder="Ex: 655XXXXXX"
-                  style={inputStyle}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>Référence de Transaction SMS</label>
-                <input 
-                  type="text" 
-                  value={transactionRefInput} 
-                  onChange={(e) => setTransactionRefInput(e.target.value)} 
-                  placeholder="Ex: PP260914.XXXX.XXXXX"
-                  style={inputStyle}
-                />
-              </div>
-            </div>
-
-            <button 
-              onClick={handleInitiatePayment} 
-              disabled={isSubmittingPayment}
-              style={{ width: '100%', backgroundColor: '#FF7900', color: '#FFFFFF !important', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
-              {isSubmittingPayment ? 'Enregistrement en cours...' : '✅ VALIDER MA COMMANDE'}
-            </button>
-          </div>
-        )}
-
-        {/* 6. ÉCRAN D'ATTENTE CLIENT */}
-        {step === 'pending' && currentOrder && (
-          <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
-            <div style={{ width: '50px', height: '50px', border: '4px solid #1C2541', borderTop: '4px solid #4CC9F0', borderRadius: '50%', margin: '0 auto 1.5rem auto' }} />
-            
-            <h2 style={{ fontSize: '1.3rem', color: '#4CC9F0 !important', marginBottom: '0.5rem', fontWeight: 'bold' }}>Vérification du paiement en cours...</h2>
-            <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', marginBottom: '1.5rem' }}>
-              Votre demande a bien été transmise dans Supabase. Dès confirmation de votre dépôt par l'administration, votre document PDF sera automatiquement disponible ci-dessous.
-            </p>
-
-            <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', textAlign: 'left', fontSize: '0.85rem' }}>
-              <p style={{ margin: '0 0 0.5rem 0', color: '#D1D5DB !important' }}>ID Commande Supabase : <strong style={{ color: '#FFFFFF !important' }}>{currentOrder.id}</strong></p>
-              <p style={{ margin: '0 0 0.5rem 0', color: '#D1D5DB !important' }}>Document : <strong style={{ color: '#FFFFFF !important' }}>{currentOrder.docTitle}</strong></p>
-              <p style={{ margin: '0 0 0.5rem 0', color: '#D1D5DB !important' }}>Expéditeur : <strong style={{ color: '#FFFFFF !important' }}>{currentOrder.senderPhone}</strong></p>
-              <p style={{ margin: 0, color: '#D1D5DB !important' }}>Montant : <strong style={{ color: '#4CC9F0 !important' }}>{currentOrder.price}</strong></p>
-            </div>
-          </div>
-        )}
-
-        {/* 7. TÉLÉCHARGEMENT FINAL */}
-        {step === 'success' && (selectedDoc || currentOrder) && (
-          <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
-            <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0 !important', marginBottom: '0.5rem', fontWeight: 'bold' }}>Paiement Confirmé !</h2>
-            <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', marginBottom: '1.5rem' }}>
-              Votre document a été validé. Vous pouvez le télécharger au format PDF officiel.
-            </p>
-
-            {/* ELEMENT MASQUÉ POUR IMPRESSION PDF */}
-            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-              <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFFFFF', color: '#000000', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
-                <div className="preview-document" style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: currentOrder?.generatedBody || generatedBody }} />
-              </div>
-            </div>
-
-            <button 
-              onClick={generatePDF}
-              disabled={isGeneratingPDF}
-              style={{ width: '100%', backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1rem' }}>
-              {isGeneratingPDF ? 'Téléchargement...' : '⬇️ TÉLÉCHARGER MON PDF'}
-            </button>
-
-            <button 
-              onClick={() => setStep('home')}
-              style={{ width: '100%', backgroundColor: '#0B132B', color: '#D1D5DB !important', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer' }}>
-              🏠 Créer un autre document
-            </button>
-          </div>
-        )}
-
-        {/* 8. CONNEXION ADMIN */}
-        {step === 'admin_login' && (
-          <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
-            <h2 style={{ fontSize: '1.2rem', color: '#F72585 !important', marginBottom: '1rem', fontWeight: 'bold' }}>🔒 Espace Administration</h2>
-            <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>Code PIN Accès</label>
-                <input 
-                  type="password" 
-                  value={adminPinInput} 
-                  onChange={(e) => setAdminPinInput(e.target.value)} 
-                  placeholder="Entrez le code PIN (ex: 1234)"
-                  style={inputStyle}
-                />
-              </div>
-              {adminPinError && <p style={{ color: '#E63946 !important', fontSize: '0.8rem', margin: 0 }}>Code PIN incorrect.</p>}
-              <button type="submit" style={{ backgroundColor: '#F72585', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                Se connecter
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* 9. DASHBOARD ADMIN */}
-        {step === 'admin_dashboard' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ fontSize: '1.2rem', color: '#F72585 !important', margin: 0, fontWeight: 'bold' }}>📊 Suivi des Paiements Supabase</h2>
-              <button onClick={() => setStep('home')} style={{ backgroundColor: '#0B132B', color: '#FFFFFF !important', border: '1px solid #3A506B', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
-                Quitter
-              </button>
-            </div>
-
-            {orders.length === 0 ? (
-              <p style={{ color: '#D1D5DB !important', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande enregistrée dans Supabase pour le moment.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {orders.map((ord) => (
-                  <div key={ord.id} style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '10px', border: '1px solid #3A506B', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 'bold', color: '#4CC9F0 !important', fontSize: '0.85rem' }}>{ord.id}</span>
-                      <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: ord.status === 'APPROVED' ? 'rgba(37, 211, 102, 0.2)' : 'rgba(247, 37, 133, 0.2)', color: ord.status === 'APPROVED' ? '#25D366 !important' : '#F72585 !important', fontWeight: 'bold' }}>
-                        {ord.status === 'APPROVED' ? 'VALIDE' : 'EN ATTENTE'}
-                      </span>
-                    </div>
-
-                    <div style={{ fontSize: '0.85rem', color: '#FFFFFF !important' }}>
-                      <p style={{ margin: '0 0 0.2rem 0' }}>Document : <strong>{ord.docTitle}</strong></p>
-                      <p style={{ margin: '0 0 0.2rem 0' }}>Montant : <strong>{ord.price}</strong></p>
-                      <p style={{ margin: '0 0 0.2rem 0' }}>Expéditeur OM : <strong>{ord.senderPhone}</strong></p>
-                      <p style={{ margin: 0 }}>Réf SMS : <strong>{ord.transactionRef || 'N/A'}</strong> ({ord.createdAt})</p>
-                    </div>
-
-                    {ord.status === 'PENDING' && (
-                      <button 
-                        onClick={() => handleApproveOrder(ord.id)}
-                        style={{ marginTop: '0.5rem', backgroundColor: '#25D366', color: '#FFFFFF !important', border: 'none', padding: '0.6rem', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>
-                        ✅ Valider le paiement
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-      </main>
     </div>
   );
 }
