@@ -1,186 +1,636 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
-import { 
-  FileText, CheckCircle, Download, Clock, ShieldCheck, 
-  ArrowLeft, CreditCard, Lock, RefreshCw, Send, AlertCircle
-} from 'lucide-react';
+import jsPDF from 'jspdf';
+import { createClient } from '@supabase/supabase-js';
 
-// Initialisation sécurisée pour éviter les erreurs lors du build sur Vercel
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+// --- INITIALISATION SUPABASE ---
+const supabaseUrl = 
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 
+  process.env.SUPABASE_URL || 
+  'https://placeholder-url.supabase.co';
+
+const supabaseAnonKey = 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+  process.env.SUPABASE_ANON_KEY || 
+  'placeholder-key';
+
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Interfaces de données
-interface DocumentTemplate {
+// --- COMPOSANT LOGO SVG PROFESSIONNEL ---
+const AppLogo = ({ size = 32 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="40" height="40" rx="10" fill="url(#logo_grad)" />
+    <path d="M13 11H23L29 17V29C29 30.1046 28.1046 31 27 31H13C11.8954 31 11 30.1046 11 29V13C11 11.8954 11.8954 11 13 11Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M22 11V18H29" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M21 21L17 26H21L19 30L24 25H20L21 21Z" fill="#F72585" stroke="#F72585" strokeWidth="0.5" strokeLinejoin="round"/>
+    <defs>
+      <linearGradient id="logo_grad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#4361EE" />
+        <stop offset="1" stopColor="#4CC9F0" />
+      </linearGradient>
+    </defs>
+  </svg>
+);
+
+// --- INTERFACES & CONFIGURATION ---
+interface FormField {
+  id: string;
+  label: string;
+  type: 'text' | 'textarea' | 'number' | 'email' | 'select';
+  placeholder?: string;
+  options?: string[];
+  step: number;
+  required?: boolean;
+}
+
+interface DocumentConfig {
   id: string;
   title: string;
   category: string;
-  price: number;
-  description: string;
-  fields: { name: string; label: string; type: string; placeholder: string; required?: boolean }[];
+  price: string;
+  priceNumeric: number;
+  badge?: string;
+  desc: string;
+  fields: FormField[];
 }
 
 interface Order {
   id: string;
-  doc_title: string;
-  user_phone: string;
-  transaction_ref: string;
-  amount: number;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  form_data: Record<string, string>;
-  created_at?: string;
+  docTitle: string;
+  price: string;
+  clientPhone: string;
+  senderPhone?: string;
+  transactionRef?: string;
+  status: 'PENDING' | 'APPROVED';
+  createdAt: string;
+  formData: Record<string, string>;
+  generatedBody: string;
 }
 
-// Catalogue des modèles administratifs
-const DOCUMENT_TEMPLATES: DocumentTemplate[] = [
-  {
-    id: 'attestation-honneur',
-    title: 'Attestation sur l’honneur',
-    category: 'Administratif',
-    price: 1000,
-    description: 'Déclaration officielle certifiant l’exactitude de faits ou d’une situation personnelle.',
+const DOCUMENTS_CONFIG: Record<string, DocumentConfig> = {
+  quittance_loyer: {
+    id: 'quittance_loyer',
+    title: 'Quittance de loyer',
+    category: 'IMMOBILIER',
+    price: '500 FCFA',
+    priceNumeric: 500,
+    desc: 'Attestation officielle de paiement intégral du loyer mensuel.',
     fields: [
-      { name: 'nom', label: 'Nom complet', type: 'text', placeholder: 'Ex: Jean Dupont', required: true },
-      { name: 'adresse', label: 'Adresse de résidence', type: 'text', placeholder: 'Ex: Yaoundé, Bastos', required: true },
-      { name: 'cni', label: 'Numéro de CNI / Passeport', type: 'text', placeholder: 'Ex: 123456789', required: true },
-      { name: 'motif', label: 'Objet de l’attestation', type: 'textarea', placeholder: 'Ex: Déclaration de non-emploi...', required: true },
+      { id: 'bailleur_nom', label: 'Nom complet du bailleur', type: 'text', step: 1, required: true },
+      { id: 'bailleur_phone', label: 'Téléphone bailleur', type: 'text', step: 1 },
+      { id: 'locataire_nom', label: 'Nom complet du locataire', type: 'text', step: 1, required: true },
+      { id: 'logement_adresse', label: 'Adresse du logement', type: 'text', placeholder: 'Ex: Omnisports, Yaoundé', step: 2, required: true },
+      { id: 'periode', label: 'Période / Mois concerné', type: 'text', placeholder: 'Ex: Mois de Septembre 2026', step: 2, required: true },
+      { id: 'loyer_montant', label: 'Montant du loyer (FCFA)', type: 'number', step: 2, required: true },
+      { id: 'paiement_date', label: 'Date de paiement', type: 'text', placeholder: 'JJ/MM/AAAA', step: 3, required: true },
+      { id: 'paiement_mode', label: 'Mode de paiement', type: 'select', options: ['Espèces', 'Orange Money', 'MTN Mobile Money', 'Virement bancaire'], step: 3, required: true }
     ]
   },
-  {
-    id: 'contrat-bail',
-    title: 'Contrat de Bail d’Habitation',
-    category: 'Immobilier',
-    price: 2500,
-    description: 'Bail type conforme pour la location d’un logement (bailleur et locataire).',
+  recu_loyer: {
+    id: 'recu_loyer',
+    title: 'Reçu de paiement de loyer',
+    category: 'IMMOBILIER',
+    price: '500 FCFA',
+    priceNumeric: 500,
+    desc: 'Preuve de paiement partiel ou d’acompte sur le loyer.',
     fields: [
-      { name: 'bailleur', label: 'Nom du Bailleur (Propriétaire)', type: 'text', placeholder: 'Ex: Paul Atangana', required: true },
-      { name: 'locataire', label: 'Nom du Locataire', type: 'text', placeholder: 'Ex: Alice Mbida', required: true },
-      { name: 'adresse_bien', label: 'Adresse du bien loué', type: 'text', placeholder: 'Ex: Douala, Akwa', required: true },
-      { name: 'loyer', label: 'Montant du loyer mensuel (FCFA)', type: 'number', placeholder: 'Ex: 75000', required: true },
-      { name: 'duree', label: 'Durée du contrat (en mois/années)', type: 'text', placeholder: 'Ex: 1 an renouvelable', required: true }
+      { id: 'receveur_nom', label: 'Nom du bénéficiaire (Bailleur)', type: 'text', step: 1, required: true },
+      { id: 'payeur_nom', label: 'Nom du payeur (Locataire)', type: 'text', step: 1, required: true },
+      { id: 'logement_adresse', label: 'Adresse du logement', type: 'text', step: 2, required: true },
+      { id: 'montant', label: 'Montant perçu (FCFA)', type: 'number', step: 2, required: true },
+      { id: 'motif', label: 'Motif du paiement', type: 'text', placeholder: 'Ex: Acompte loyer Septembre', step: 2, required: true },
+      { id: 'reste_a_payer', label: 'Reste éventuel à payer (FCFA)', type: 'number', step: 3 }
     ]
   },
-  {
-    id: 'demande-emploi',
-    title: 'Lettre de Demande d’Emploi',
-    category: 'Professionnel',
-    price: 1500,
-    description: 'Lettre de motivation professionnelle adaptée à une candidature formelle.',
+  attestation_location: {
+    id: 'attestation_location',
+    title: 'Attestations locatives',
+    category: 'IMMOBILIER',
+    price: '500 FCFA',
+    priceNumeric: 500,
+    desc: 'Attestations d’hébergement, de location ou de paiement.',
     fields: [
-      { name: 'candidat', label: 'Votre Nom Complet', type: 'text', placeholder: 'Ex: Desire Atangana', required: true },
-      { name: 'poste', label: 'Intitulé du poste visé', type: 'text', placeholder: 'Ex: Responsable Commercial', required: true },
-      { name: 'entreprise', label: 'Nom de l’entreprise cible', type: 'text', placeholder: 'Ex: Société ABC', required: true },
-      { name: 'competences', label: 'Points forts / Expériences clés', type: 'textarea', placeholder: 'Ex: 5 ans d’expérience en gestion de réseau...', required: true }
+      { id: 'attestation_type', label: 'Type d’attestation', type: 'select', options: ['Attestation d’hébergement', 'Attestation de location', 'Attestation de paiement de loyer'], step: 1, required: true },
+      { id: 'declarant_nom', label: 'Nom complet du déclarant', type: 'text', step: 1, required: true },
+      { id: 'declarant_adresse', label: 'Adresse du déclarant', type: 'text', step: 1, required: true },
+      { id: 'beneficiaire_nom', label: 'Nom complet du bénéficiaire', type: 'text', step: 2, required: true },
+      { id: 'date_debut', label: 'Réside / Hébergé depuis le', type: 'text', placeholder: 'JJ/MM/AAAA', step: 2, required: true }
+    ]
+  },
+  recu_vente: {
+    id: 'recu_vente',
+    title: 'Reçu de vente',
+    category: 'BUSINESS',
+    price: '500 FCFA',
+    priceNumeric: 500,
+    desc: 'Justificatif de vente directe de produits ou services.',
+    fields: [
+      { id: 'vendeur_nom', label: 'Nom du vendeur / Boutique', type: 'text', step: 1, required: true },
+      { id: 'acheteur_nom', label: 'Nom de l’acheteur', type: 'text', step: 1, required: true },
+      { id: 'articles_liste', label: 'Désignation des articles achetés', type: 'textarea', step: 2, required: true },
+      { id: 'montant_recu', label: 'Montant encaissé (FCFA)', type: 'number', step: 3, required: true }
+    ]
+  },
+  lettre: {
+    id: 'lettre',
+    title: 'Lettre de motivation',
+    category: 'CARRIÈRE',
+    price: '500 FCFA',
+    priceNumeric: 500,
+    badge: 'POPULAIRE',
+    desc: 'Rédigée sur mesure et au format professionnel.',
+    fields: [
+      { id: 'name', label: 'Nom & Prénom', type: 'text', step: 1, required: true },
+      { id: 'phone', label: 'Téléphone', type: 'text', step: 1, required: true },
+      { id: 'address', label: 'Ville / Adresse', type: 'text', step: 1 },
+      { id: 'jobTitle', label: 'Poste recherché', type: 'text', step: 2, required: true },
+      { id: 'recipient', label: 'Entreprise / Destinataire', type: 'text', step: 2, required: true },
+      { id: 'experience', label: 'Vos points forts & Parcours', type: 'textarea', step: 3, required: true },
+      { id: 'motivation', label: 'Pourquoi ce poste ?', type: 'textarea', step: 3, required: true }
+    ]
+  },
+  contrat_bail: {
+    id: 'contrat_bail',
+    title: 'Contrat de bail d’habitation',
+    category: 'IMMOBILIER',
+    price: '1 000 FCFA',
+    priceNumeric: 1000,
+    desc: 'Bail d’habitation complet sécurisé avec clauses d’occupation.',
+    fields: [
+      { id: 'bailleur_nom', label: 'Nom du bailleur', type: 'text', placeholder: 'Ex: MBARGA', step: 1, required: true },
+      { id: 'bailleur_prenom', label: 'Prénom(s) du bailleur', type: 'text', placeholder: 'Ex: Paul', step: 1, required: true },
+      { id: 'bailleur_phone', label: 'Téléphone bailleur', type: 'text', placeholder: 'Ex: 6XX XX XX XX', step: 1, required: true },
+      { id: 'bailleur_adresse', label: 'Adresse bailleur', type: 'text', step: 1 },
+      { id: 'locataire_nom', label: 'Nom du locataire', type: 'text', placeholder: 'Ex: KOUAM', step: 2, required: true },
+      { id: 'locataire_prenom', label: 'Prénom(s) du locataire', type: 'text', step: 2, required: true },
+      { id: 'locataire_phone', label: 'Téléphone locataire', type: 'text', step: 2, required: true },
+      { id: 'logement_type', label: 'Type de logement', type: 'select', options: ['Studio', 'Appartement', 'Chambre', 'Maison villa'], step: 3, required: true },
+      { id: 'logement_ville', label: 'Ville & Quartier', type: 'text', placeholder: 'Ex: Yaoundé, Bastos', step: 3, required: true },
+      { id: 'loyer_montant', label: 'Loyer mensuel (FCFA)', type: 'number', placeholder: 'Ex: 75000', step: 3, required: true },
+      { id: 'caution_montant', label: 'Montant de la caution (FCFA)', type: 'number', step: 3 },
+      { id: 'date_debut', label: 'Date de début du bail', type: 'text', placeholder: 'JJ/MM/AAAA', step: 3, required: true }
+    ]
+  },
+  facture_simple: {
+    id: 'facture_simple',
+    title: 'Facture simple',
+    category: 'BUSINESS',
+    price: '1 000 FCFA',
+    priceNumeric: 1000,
+    desc: 'Facture commerciale claire avec calculs des totaux.',
+    fields: [
+      { id: 'vendeur_nom', label: 'Nom commercial / Entreprise', type: 'text', step: 1, required: true },
+      { id: 'vendeur_phone', label: 'Téléphone / WhatsApp', type: 'text', step: 1, required: true },
+      { id: 'client_nom', label: 'Nom du client / Entreprise', type: 'text', step: 2, required: true },
+      { id: 'objets_factures', label: 'Détail des prestations ou articles', type: 'textarea', placeholder: 'Ex: 2x Conception Logo (15000), 1x Impression Bâche (20000)', step: 3, required: true }
+    ]
+  },
+  facture_proforma: {
+    id: 'facture_proforma',
+    title: 'Facture proforma',
+    category: 'BUSINESS',
+    price: '1 000 FCFA',
+    priceNumeric: 1000,
+    desc: 'Devis et offre commerciale officielle avant prestation.',
+    fields: [
+      { id: 'vendeur_nom', label: 'Nom de votre entreprise', type: 'text', step: 1, required: true },
+      { id: 'client_nom', label: 'Client destinataire', type: 'text', step: 1, required: true },
+      { id: 'validite', label: 'Validité de l’offre', type: 'text', placeholder: 'Ex: 15 jours', step: 2, required: true },
+      { id: 'objets_factures', label: 'Services ou produits proposés', type: 'textarea', placeholder: 'Ex: 1x Maintenance informatique (50000)', step: 3, required: true }
+    ]
+  },
+  bon_commande: {
+    id: 'bon_commande',
+    title: 'Bon de commande',
+    category: 'BUSINESS',
+    price: '1 000 FCFA',
+    priceNumeric: 1000,
+    desc: 'Ordre d’achat officiel adressé à un fournisseur.',
+    fields: [
+      { id: 'acheteur_nom', label: 'Nom de votre entreprise', type: 'text', step: 1, required: true },
+      { id: 'fournisseur_nom', label: 'Nom du fournisseur', type: 'text', step: 1, required: true },
+      { id: 'produits_commandes', label: 'Liste des produits commandés', type: 'textarea', step: 2, required: true },
+      { id: 'livraison_adresse', label: 'Lieu de livraison souhaité', type: 'text', step: 3, required: true }
+    ]
+  },
+  cv: {
+    id: 'cv',
+    title: 'CV professionnel',
+    category: 'CARRIÈRE',
+    price: '1 000 FCFA',
+    priceNumeric: 1000,
+    badge: 'POPULAIRE',
+    desc: 'Format moderne optimisé pour le marché de l’emploi.',
+    fields: [
+      { id: 'name', label: 'Nom complet', type: 'text', step: 1, required: true },
+      { id: 'phone', label: 'Téléphone & WhatsApp', type: 'text', step: 1, required: true },
+      { id: 'jobTitle', label: 'Poste visé', type: 'text', placeholder: 'Ex: Commercial terrain', step: 2, required: true },
+      { id: 'experience', label: 'Vos expériences (Postes, entreprises, tâches)', type: 'textarea', step: 3, required: true },
+      { id: 'education', label: 'Formations & Diplômes', type: 'textarea', step: 3 }
+    ]
+  },
+  pack_emploi: {
+    id: 'pack_emploi',
+    title: 'Pack Emploi (CV + Lettre)',
+    category: 'PACKS',
+    price: '1 500 FCFA',
+    priceNumeric: 1500,
+    badge: 'MEILLEURE OFFRE',
+    desc: 'Formulaire unique pour obtenir votre CV et votre Lettre.',
+    fields: [
+      { id: 'name', label: 'Nom complet', type: 'text', step: 1, required: true },
+      { id: 'phone', label: 'Téléphone & WhatsApp', type: 'text', step: 1, required: true },
+      { id: 'jobTitle', label: 'Poste recherché', type: 'text', step: 2, required: true },
+      { id: 'recipient', label: 'Entreprise visée', type: 'text', step: 2, required: true },
+      { id: 'experience', label: 'Parcours & Expériences', type: 'textarea', step: 3, required: true }
+    ]
+  },
+  pack_entrepreneur: {
+    id: 'pack_entrepreneur',
+    title: 'Pack Entrepreneur (5 documents)',
+    category: 'PACKS',
+    price: '4 000 FCFA',
+    priceNumeric: 4000,
+    badge: 'PRO',
+    desc: '5 documents administratifs ou commerciaux pour votre entreprise.',
+    fields: [
+      { id: 'vendeur_nom', label: 'Nom de votre entreprise', type: 'text', step: 1, required: true },
+      { id: 'vendeur_phone', label: 'Téléphone pro / WhatsApp', type: 'text', step: 1, required: true },
+      { id: 'docs_selection', label: 'Précisez les 5 documents souhaités', type: 'textarea', step: 2, required: true }
     ]
   }
-];
+};
 
-export default function DocExpressApp() {
-  const [step, setStep] = useState<'catalog' | 'form' | 'review' | 'payment' | 'pending' | 'success' | 'admin'>('catalog');
-  const [selectedDoc, setSelectedDoc] = useState<DocumentTemplate | null>(null);
-  const [formData, setFormData] = useState<Record<string, string>>({});
-  const [userPhone, setUserPhone] = useState('');
-  const [transactionRef, setTransactionRef] = useState('');
-  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(false);
+export default function Home() {
+  const [showSplash, setShowSplash] = useState(true);
+  const [step, setStep] = useState<'home' | 'form' | 'review' | 'preview' | 'payment' | 'pending' | 'success' | 'admin_login' | 'admin_dashboard'>('home');
+  const [selectedDoc, setSelectedDoc] = useState<DocumentConfig | null>(null);
+  const [formStep, setFormStep] = useState(1);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [ordersList, setOrdersList] = useState<Order[]>([]);
-  const [adminPin, setAdminPin] = useState('');
+  const [generatedBody, setGeneratedBody] = useState<string>('');
+  const [formData, setFormData] = useState<Record<string, string>>({});
+
+  const [senderPhoneInput, setSenderPhoneInput] = useState('');
+  const [transactionRefInput, setTransactionRefInput] = useState('');
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [adminPinInput, setAdminPinInput] = useState('');
+  const [adminPinError, setAdminPinError] = useState(false);
 
   const documentRef = useRef<HTMLDivElement>(null);
+  const sortedDocuments = Object.values(DOCUMENTS_CONFIG).sort((a, b) => a.priceNumeric - b.priceNumeric);
 
-  // Écoute de la validation administrative en temps réel via Supabase
   useEffect(() => {
-    if (step === 'pending' && currentOrder?.id) {
-      const channel = supabase
-        .channel(`order-${currentOrder.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'orders',
-            filter: `id=eq.${currentOrder.id}`
-          },
-          (payload) => {
-            const updated = payload.new as Order;
-            if (updated.status === 'APPROVED') {
-              setCurrentOrder(updated);
-              setStep('success');
-            } else if (updated.status === 'REJECTED') {
-              alert('Paiement non confirmé. Veuillez vérifier la référence SMS.');
-              setStep('payment');
-            }
-          }
-        )
-        .subscribe();
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
+  const fetchSupabaseOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (data && !error) {
+        const mappedOrders: Order[] = data.map((item: any) => ({
+          id: item.id,
+          docTitle: item.doc_title || 'Document',
+          price: `${item.amount || 0} FCFA`,
+          clientPhone: item.sender_phone || 'Non renseigné',
+          senderPhone: item.sender_phone,
+          transactionRef: item.transaction_ref,
+          status: item.status === 'completed' ? 'APPROVED' : 'PENDING',
+          createdAt: new Date(item.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          formData: item.form_data || {},
+          generatedBody: item.generated_body || ''
+        }));
+        setOrders(mappedOrders);
+      }
+    } catch (err) {
+      console.error('Erreur Supabase:', err);
     }
-  }, [step, currentOrder?.id]);
+  };
 
-  const handleSelectDoc = (doc: DocumentTemplate) => {
+  useEffect(() => {
+    fetchSupabaseOrders();
+  }, [step]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (step === 'pending' && currentOrder) {
+      interval = setInterval(async () => {
+        try {
+          const { data } = await supabase
+            .from('orders')
+            .select('*')
+            .eq('id', currentOrder.id)
+            .single();
+
+          if (data && data.status === 'completed') {
+            setCurrentOrder(prev => prev ? { ...prev, status: 'APPROVED' } : null);
+            setStep('success');
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [step, currentOrder]);
+
+  const handleSelectDoc = (doc: DocumentConfig) => {
     setSelectedDoc(doc);
+    setFormStep(1);
     setFormData({});
+    setGeneratedBody('');
+    setSenderPhoneInput('');
+    setTransactionRefInput('');
     setStep('form');
+    setIsMenuOpen(false);
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (fieldId: string, value: string) => {
+    setFormData(prev => ({ ...prev, [fieldId]: value }));
   };
 
-  const handleSubmitForm = (e: React.FormEvent) => {
-    e.preventDefault();
-    setStep('review');
+  const handleBack = () => {
+    if (step === 'form') {
+      if (formStep > 1) {
+        setFormStep(formStep - 1);
+      } else {
+        setStep('home');
+      }
+    } else if (step === 'review') {
+      setStep('form');
+    } else if (step === 'preview') {
+      setStep('review');
+    } else if (step === 'payment') {
+      setStep('preview');
+    } else if (step === 'pending') {
+      setStep('payment');
+    } else if (step === 'success') {
+      setStep('home');
+    } else if (step === 'admin_login' || step === 'admin_dashboard') {
+      setStep('home');
+    }
   };
 
-  // Traitement et sauvegarde de la commande dans Supabase
-  const handlePaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedDoc || !userPhone || !transactionRef) return;
+  const handleProcessDocument = async () => {
+    setIsGeneratingContent(true);
+    let content = '';
+    const id = selectedDoc?.id;
 
-    setLoading(true);
+    if (id === 'contrat_bail') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px; color: #000000 !important;">CONTRAT DE BAIL À USAGE D'HABITATION</h2>
+        <p style="color: #000000 !important;"><strong>ENTRE LES SOUSSIGNÉS :</strong></p>
+        <p style="color: #000000 !important;"><strong>Le Bailleur :</strong> M./Mme ${formData.bailleur_nom || ''} ${formData.bailleur_prenom || ''}, Tél : ${formData.bailleur_phone || ''}, Domicilié à : ${formData.bailleur_adresse || 'N/A'}.</p>
+        <p style="color: #000000 !important;"><strong>ET</strong></p>
+        <p style="color: #000000 !important;"><strong>Le Locataire :</strong> M./Mme ${formData.locataire_nom || ''} ${formData.locataire_prenom || ''}, Tél : ${formData.locataire_phone || ''}.</p>
+        <hr style="margin: 15px 0;" />
+        <p style="color: #000000 !important;"><strong>1. OBJET :</strong> Le bailleur donne à bail d'habitation le bien situé à : <strong>${formData.logement_ville || ''}</strong> (Type : ${formData.logement_type || 'Logement'}).</p>
+        <p style="color: #000000 !important;"><strong>2. DURÉE :</strong> Prend effet le <strong>${formData.date_debut || ''}</strong> pour une durée d'un an renouvelable par tacite reconduction.</p>
+        <p style="color: #000000 !important;"><strong>3. CONDITIONS FINANCIÈRES :</strong> Loyer mensuel fixé à <strong>${formData.loyer_montant || 0} FCFA</strong>. Caution versée : <strong>${formData.caution_montant || 0} FCFA</strong>.</p>
+        <br/><br/>
+        <div style="display: flex; justify-content: space-between; margin-top: 40px; color: #000000 !important;">
+          <div><strong>Le Bailleur</strong><br/><br/><i>(Signature)</i></div>
+          <div><strong>Le Locataire</strong><br/><br/><i>(Signature)</i></div>
+        </div>
+      `;
+    } else if (id === 'quittance_loyer') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase; color: #000000 !important;">QUITTANCE DE LOYER</h2>
+        <p style="text-align: right; color: #000000 !important;"><strong>Période :</strong> ${formData.periode || ''}</p>
+        <p style="color: #000000 !important;">Je soussigné <strong>${formData.bailleur_nom || ''}</strong> (Tél : ${formData.bailleur_phone || ''}), propriétaire du logement situé à <strong>${formData.logement_adresse || ''}</strong>,</p>
+        <p style="color: #000000 !important;">Reconnais avoir reçu de M./Mme <strong>${formData.locataire_nom || ''}</strong> la somme de <strong>${formData.loyer_montant || 0} FCFA</strong> au titre du paiement du loyer pour la période susmentionnée.</p>
+        <p style="color: #000000 !important;"><strong>Mode de paiement :</strong> ${formData.paiement_mode || 'Espèces'} le ${formData.paiement_date || ''}.</p>
+        <p style="margin-top: 20px; color: #000000 !important;"><i>Sous réserve de tous mes droits. Document délivré pour servir et valoir ce que de droit.</i></p>
+        <br/><br/>
+        <div style="text-align: right; margin-top: 30px; color: #000000 !important;">
+          <strong>Le Bailleur / Gestionnaire</strong><br/><br/><i>(Signature & Cachet)</i>
+        </div>
+      `;
+    } else if (id === 'recu_loyer') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase; color: #000000 !important;">REÇU DE PAIEMENT DE LOYER</h2>
+        <p style="color: #000000 !important;">Reçu de M./Mme <strong>${formData.payeur_nom || ''}</strong></p>
+        <p style="color: #000000 !important;">La somme de : <strong>${formData.montant || 0} FCFA</strong></p>
+        <p style="color: #000000 !important;"><strong>Motif :</strong> ${formData.motif || 'Acompte / Loyer'} pour le logement situé à ${formData.logement_adresse || ''}.</p>
+        <p style="color: #000000 !important;"><strong>Reste à payer :</strong> ${formData.reste_a_payer || 0} FCFA.</p>
+        <br/><br/>
+        <div style="display: flex; justify-content: space-between; margin-top: 30px; color: #000000 !important;">
+          <div><strong>Le Payeur</strong></div>
+          <div><strong>Le Bénéficiaire (${formData.receveur_nom || ''})</strong><br/><br/><i>(Signature)</i></div>
+        </div>
+      `;
+    } else if (id === 'attestation_location') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase; color: #000000 !important;">${(formData.attestation_type || "ATTESTATION").toUpperCase()}</h2>
+        <br/>
+        <p style="color: #000000 !important;">Je soussigné(e) <strong>${formData.declarant_nom || ''}</strong>, demeurant à <strong>${formData.declarant_adresse || ''}</strong>,</p>
+        <p style="color: #000000 !important;">Atteste sur l'honneur que M./Mme <strong>${formData.beneficiaire_nom || ''}</strong> est hébergé(e) / réside à mon adresse susmentionnée depuis le <strong>${formData.date_debut || ''}</strong>.</p>
+        <p style="color: #000000 !important;">En foi de quoi, la présente attestation est établie pour servir et valoir ce que de droit.</p>
+        <br/><br/>
+        <div style="text-align: right; margin-top: 40px; color: #000000 !important;">
+          <strong>Fait pour valoir de droit,</strong><br/><br/>
+          <strong>Le Déclarant</strong><br/><i>(Signature)</i>
+        </div>
+      `;
+    } else if (id === 'facture_simple' || id === 'facture_proforma' || id === 'recu_vente') {
+      const isProforma = id === 'facture_proforma';
+      const isRecu = id === 'recu_vente';
+      const title = isProforma ? 'FACTURE PROFORMA' : isRecu ? 'REÇU DE VENTE' : 'FACTURE';
 
-    const newOrderData = {
-      doc_title: selectedDoc.title,
-      user_phone: userPhone,
-      transaction_ref: transactionRef.trim(),
-      amount: selectedDoc.price,
-      status: 'PENDING',
-      form_data: formData
-    };
+      content = `
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 10px; color: #000000 !important;">
+          <div>
+            <h2 style="margin: 0; color: #111 !important;">${formData.vendeur_nom || 'ENTREPRISE'}</h2>
+            <p style="margin: 5px 0;">Tél/WhatsApp : ${formData.vendeur_phone || ''}</p>
+          </div>
+          <div style="text-align: right;">
+            <h3 style="margin: 0; color: #4361EE !important;">${title}</h3>
+            ${isProforma ? `<p style="margin: 5px 0;">Validité : ${formData.validite || '15 jours'}</p>` : ''}
+          </div>
+        </div>
+        <br/>
+        <p style="color: #000000 !important;"><strong>Client :</strong> ${formData.client_nom || formData.acheteur_nom || ''}</p>
+        <br/>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px; color: #000000 !important;">
+          <thead>
+            <tr style="background: #f2f2f2; text-align: left;">
+              <th style="padding: 8px; border: 1px solid #ddd;">Désignation / Prestation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="padding: 12px; border: 1px solid #ddd; white-space: pre-wrap;">${formData.objets_factures || formData.articles_liste || ''}</td>
+            </tr>
+          </tbody>
+        </table>
+        ${formData.montant_recu ? `<h3 style="text-align: right; margin-top: 15px; color: #000000 !important;">Total encaissé : ${formData.montant_recu} FCFA</h3>` : ''}
+        <br/><br/>
+        <div style="text-align: right; margin-top: 30px; color: #000000 !important;">
+          <strong>La Direction / Le Vendeur</strong><br/><br/><i>(Signature)</i>
+        </div>
+      `;
+    } else if (id === 'bon_commande') {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase; color: #000000 !important;">BON DE COMMANDE</h2>
+        <p style="color: #000000 !important;"><strong>Acheteur :</strong> ${formData.acheteur_nom || ''}</p>
+        <p style="color: #000000 !important;"><strong>Fournisseur :</strong> ${formData.fournisseur_nom || ''}</p>
+        <p style="color: #000000 !important;"><strong>Lieu de livraison :</strong> ${formData.livraison_adresse || ''}</p>
+        <hr/>
+        <h3 style="color: #000000 !important;">Détail des articles commandés :</h3>
+        <div style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; white-space: pre-wrap; color: #000000 !important;">
+          ${formData.produits_commandes || ''}
+        </div>
+        <br/><br/>
+        <div style="display: flex; justify-content: space-between; margin-top: 30px; color: #000000 !important;">
+          <div><strong>L'Acheteur</strong><br/><br/><i>(Signature)</i></div>
+          <div><strong>Confirmation Fournisseur</strong><br/><br/><i>(Signature)</i></div>
+        </div>
+      `;
+    } else if (id === 'cv') {
+      content = `
+        <div style="border-bottom: 3px solid #4361EE; padding-bottom: 10px; margin-bottom: 20px; color: #000000 !important;">
+          <h1 style="margin: 0; color: #111 !important; text-transform: uppercase;">${formData.name || ''}</h1>
+          <h3 style="margin: 5px 0; color: #4361EE !important;">${formData.jobTitle || ''}</h3>
+          <p style="margin: 0; color: #555 !important;">Tél : ${formData.phone || ''}</p>
+        </div>
+        
+        <h3 style="background: #f0f0f0; padding: 5px 10px; border-left: 4px solid #4361EE; color: #000000 !important;">EXPÉRIENCES PROFESSIONNELLES</h3>
+        <p style="white-space: pre-wrap; line-height: 1.6; color: #000000 !important;">${formData.experience || ''}</p>
+
+        <h3 style="background: #f0f0f0; padding: 5px 10px; border-left: 4px solid #4361EE; margin-top: 20px; color: #000000 !important;">FORMATIONS & DIPLÔMES</h3>
+        <p style="white-space: pre-wrap; line-height: 1.6; color: #000000 !important;">${formData.education || 'Non renseigné'}</p>
+      `;
+    } else if (id === 'lettre') {
+      content = `
+        <p style="color: #000000 !important;"><strong>${formData.name || ''}</strong><br/>Tél : ${formData.phone || ''}<br/>${formData.address || ''}</p>
+        <p style="text-align: right; color: #000000 !important;"><strong>À l'attention du Recruteur</strong><br/>${formData.recipient || 'L\'Entreprise'}</p>
+        <br/>
+        <p style="color: #000000 !important;"><strong>Objet : Candidature au poste de ${formData.jobTitle || ''}</strong></p>
+        <br/>
+        <p style="color: #000000 !important;">Madame, Monsieur,</p>
+        <p style="color: #000000 !important;">C'est avec un vif intérêt que je vous adresse ma candidature pour le poste de <strong>${formData.jobTitle || ''}</strong> au sein de votre structure.</p>
+        <p style="color: #000000 !important;">${formData.motivation || ''}</p>
+        <p style="color: #000000 !important;">Fort de mon parcours :</p>
+        <p style="white-space: pre-wrap; color: #000000 !important;">${formData.experience || ''}</p>
+        <p style="color: #000000 !important;">Je reste à votre entière disposition pour un entretien d'embauche.</p>
+        <br/>
+        <p style="text-align: right; color: #000000 !important;"><strong>${formData.name || ''}</strong></p>
+      `;
+    } else {
+      content = `
+        <h2 style="text-align: center; text-transform: uppercase; color: #000000 !important;">${selectedDoc?.title || 'DOCUMENT'}</h2>
+        <hr/>
+        <p style="color: #000000 !important;"><strong>Nom / Raison Sociale :</strong> ${formData.name || formData.vendeur_nom || ''}</p>
+        <p style="color: #000000 !important;"><strong>Contact :</strong> ${formData.phone || formData.vendeur_phone || ''}</p>
+        ${formData.jobTitle ? `<p style="color: #000000 !important;"><strong>Poste visé :</strong> ${formData.jobTitle}</p>` : ''}
+        ${formData.recipient ? `<p style="color: #000000 !important;"><strong>Destinataire :</strong> ${formData.recipient}</p>` : ''}
+        <br/>
+        <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; white-space: pre-wrap; border: 1px solid #ddd; color: #000000 !important;">
+          ${formData.experience || formData.docs_selection || 'Détails enregistrés pour le traitement de votre pack.'}
+        </div>
+      `;
+    }
+
+    setGeneratedBody(content);
+    setStep('preview');
+    setIsGeneratingContent(false);
+  };
+
+  const handleInitiatePayment = async () => {
+    if (!selectedDoc) return;
+    if (!senderPhoneInput || !transactionRefInput) {
+      alert('Veuillez renseigner votre numéro expéditeur et la référence de transaction SMS.');
+      return;
+    }
+
+    setIsSubmittingPayment(true);
 
     try {
       const { data, error } = await supabase
         .from('orders')
-        .insert([newOrderData])
+        .insert([
+          {
+            amount: selectedDoc.priceNumeric,
+            payment_method: 'om_manual',
+            sender_phone: senderPhoneInput,
+            transaction_ref: transactionRefInput,
+            status: 'pending_verification',
+            doc_title: selectedDoc.title,
+            form_data: formData,
+            generated_body: generatedBody
+          }
+        ])
         .select()
         .single();
 
       if (error) {
-        console.error('Erreur Supabase:', error);
-        alert(`Erreur d'enregistrement : ${error.message}`);
-        setLoading(false);
-        return;
+        throw error;
       }
 
-      setCurrentOrder(data as Order);
+      const newOrder: Order = {
+        id: data.id,
+        docTitle: selectedDoc.title,
+        price: selectedDoc.price,
+        clientPhone: senderPhoneInput,
+        senderPhone: senderPhoneInput,
+        transactionRef: transactionRefInput,
+        status: 'PENDING',
+        createdAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        formData,
+        generatedBody
+      };
+
+      setCurrentOrder(newOrder);
       setStep('pending');
     } catch (err: any) {
-      console.error('Erreur:', err);
-      alert('Vérifiez votre connexion internet puis réessayez.');
+      console.error('Erreur Supabase :', err);
+      alert('Impossible d\'enregistrer la commande dans Supabase. Vérifiez votre connexion.');
     } finally {
-      setLoading(false);
+      setIsSubmittingPayment(false);
     }
   };
 
-  // Téléchargement du document au format PDF
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminPinInput === '1234') {
+      setAdminPinError(false);
+      setStep('admin_dashboard');
+    } else {
+      setAdminPinError(true);
+    }
+  };
+
+  const handleApproveOrder = async (orderId: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'completed' })
+        .eq('id', orderId);
+
+      if (!error) {
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'APPROVED' as const } : o));
+      } else {
+        alert('Erreur lors de la validation sur Supabase.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const generatePDF = async () => {
     if (!documentRef.current) return;
     setIsGeneratingPDF(true);
@@ -189,376 +639,636 @@ export default function DocExpressApp() {
       const element = documentRef.current;
       const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
       const imgData = canvas.toDataURL('image/png');
-
       const pdf = new jsPDF('p', 'mm', 'a4');
       const imgWidth = 210;
-      const pageHeight = 295;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      pdf.save(`${selectedDoc?.title || currentOrder?.doc_title || 'Document'}_DocExpress.pdf`);
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(`${selectedDoc?.title || currentOrder?.docTitle || 'Document'}_DocExpress.pdf`);
     } catch (error) {
-      console.error('Erreur PDF:', error);
-      alert('Une erreur est survenue lors de la création du PDF.');
+      console.error('Erreur lors du téléchargement :', error);
     } finally {
       setIsGeneratingPDF(false);
     }
   };
 
-  // Gestion du tableau de bord d'administration
-  const fetchOrders = async () => {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setOrdersList(data as Order[]);
-    }
-  };
-
-  const updateOrderStatus = async (orderId: string, status: 'APPROVED' | 'REJECTED') => {
-    const { error } = await supabase
-      .from('orders')
-      .update({ status })
-      .eq('id', orderId);
-
-    if (!error) {
-      fetchOrders();
-    } else {
-      alert(`Erreur de mise à jour : ${error.message}`);
-    }
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '0.8rem',
+    borderRadius: '8px',
+    border: '1px solid #3A506B',
+    backgroundColor: '#0B132B',
+    color: '#FFFFFF',
+    boxSizing: 'border-box',
+    fontFamily: 'inherit'
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col">
-      {/* Navigation principale */}
-      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setStep('catalog')}>
-            <FileText className="h-7 w-7 text-amber-500" />
-            <span className="text-xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
-              DocExpress
-            </span>
-          </div>
-          <button 
-            onClick={() => setStep('admin')}
-            className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded border border-slate-800"
-          >
-            Espace Admin
-          </button>
-        </div>
-      </header>
-
-      {/* Vues de l'application */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8">
+    <div style={{ backgroundColor: '#0B132B', color: '#FFFFFF', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      
+      {/* ANIMATIONS & STYLE GLOBAL */}
+      <style>{`
+        body, main, div, h1, h2, h3, h4, p, span, label, input, select, textarea {
+          color: #FFFFFF !important;
+        }
+        select option {
+          background-color: #0B132B !important;
+          color: #FFFFFF !important;
+        }
+        ::placeholder {
+          color: #9CA3AF !important;
+          opacity: 1;
+        }
         
-        {/* Étape 1 : Catalogue */}
-        {step === 'catalog' && (
-          <div>
-            <div className="text-center mb-10">
-              <h1 className="text-3xl font-extrabold sm:text-4xl mb-3">Vos documents administratifs en quelques clics</h1>
-              <p className="text-slate-400">Sélectionnez un modèle, complétez le formulaire, payez et téléchargez votre PDF.</p>
-            </div>
-            <div className="grid md:grid-cols-3 gap-6">
-              {DOCUMENT_TEMPLATES.map((doc) => (
-                <div key={doc.id} className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between hover:border-amber-500/50 transition">
-                  <div>
-                    <span className="text-xs font-semibold uppercase text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded">
-                      {doc.category}
-                    </span>
-                    <h3 className="text-lg font-bold mt-4 mb-2">{doc.title}</h3>
-                    <p className="text-sm text-slate-400 mb-6">{doc.description}</p>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold mb-4">{doc.price.toLocaleString()} FCFA</div>
-                    <button
-                      onClick={() => handleSelectDoc(doc)}
-                      className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2.5 rounded-lg transition"
-                    >
-                      Commander
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        @keyframes pulseGlow {
+          0% { box-shadow: 0 0 15px rgba(67, 97, 238, 0.4); }
+          50% { box-shadow: 0 0 35px rgba(76, 201, 240, 0.7); }
+          100% { box-shadow: 0 0 15px rgba(67, 97, 238, 0.4); }
+        }
 
-        {/* Étape 2 : Saisie des données */}
-        {step === 'form' && selectedDoc && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-2xl mx-auto">
-            <button onClick={() => setStep('catalog')} className="flex items-center text-sm text-slate-400 hover:text-white mb-6">
-              <ArrowLeft className="h-4 w-4 mr-1" /> Retour au catalogue
+        .hero-logo-box {
+          animation: pulseGlow 3s infinite ease-in-out;
+        }
+
+        .card-hover {
+          transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .card-hover:hover {
+          transform: translateY(-3px);
+          border-color: #4CC9F0 !important;
+        }
+      `}</style>
+
+      {/* 0. ÉCRAN DE BIENVENUE */}
+      {showSplash && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#0B132B',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          textAlign: 'center',
+          padding: '2rem'
+        }}>
+          <div style={{ marginBottom: '1rem' }}>
+            <AppLogo size={64} />
+          </div>
+          <div style={{
+            fontSize: '2.2rem',
+            fontWeight: '900',
+            letterSpacing: '3px',
+            color: '#4CC9F0 !important',
+            marginBottom: '0.2rem',
+            textTransform: 'uppercase'
+          }}>
+            DOCEXPRESS
+          </div>
+          <p style={{
+            fontSize: '1rem',
+            color: '#D1D5DB !important',
+            letterSpacing: '1px',
+            fontWeight: '300',
+            margin: 0
+          }}>
+            Générateur de documents officiels
+          </p>
+          <div style={{
+            marginTop: '2rem',
+            width: '35px',
+            height: '35px',
+            border: '3px solid #1C2541',
+            borderTop: '3px solid #4CC9F0',
+            borderRadius: '50%'
+          }} />
+        </div>
+      )}
+
+      <div>
+        {/* EN-TÊTE FIXE AVEC LOGO */}
+        <header style={{ padding: '0.9rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1C2541', position: 'sticky', top: 0, backgroundColor: 'rgba(11, 19, 43, 0.95)', backdropFilter: 'blur(10px)', zIndex: 100 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }} onClick={() => { setStep('home'); setIsMenuOpen(false); }}>
+            <AppLogo size={34} />
+            <span style={{ fontSize: '1.25rem', fontWeight: 'bold', letterSpacing: '1px', color: '#FFFFFF !important' }}>DOCEXPRESS</span>
+          </div>
+
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Menu"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '8px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-around',
+              width: '32px',
+              height: '32px',
+              zIndex: 101
+            }}>
+            <span style={{
+              width: '100%',
+              height: '3px',
+              backgroundColor: '#4CC9F0',
+              borderRadius: '2px',
+              transition: 'all 0.3s ease',
+              transform: isMenuOpen ? 'rotate(45deg) translate(6px, 6px)' : 'rotate(0)'
+            }} />
+            <span style={{
+              width: '100%',
+              height: '3px',
+              backgroundColor: '#4CC9F0',
+              borderRadius: '2px',
+              transition: 'all 0.3s ease',
+              opacity: isMenuOpen ? 0 : 1
+            }} />
+            <span style={{
+              width: '100%',
+              height: '3px',
+              backgroundColor: '#4CC9F0',
+              borderRadius: '2px',
+              transition: 'all 0.3s ease',
+              transform: isMenuOpen ? 'rotate(-45deg) translate(6px, -6px)' : 'rotate(0)'
+            }} />
+          </button>
+        </header>
+
+        {/* MENU MOBILE PLEIN ÉCRAN */}
+        {isMenuOpen && (
+          <div style={{
+            position: 'fixed',
+            top: '60px',
+            left: 0,
+            width: '100vw',
+            height: 'calc(100vh - 60px)',
+            backgroundColor: '#0B132B',
+            zIndex: 9999,
+            padding: '1.5rem',
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.5rem',
+            overflowY: 'auto'
+          }}>
+            <button 
+              onClick={() => { setStep('home'); setIsMenuOpen(false); }}
+              style={{ 
+                backgroundColor: '#1C2541', 
+                color: '#FFFFFF !important', 
+                border: '1px solid #3A506B', 
+                padding: '1rem', 
+                borderRadius: '10px', 
+                fontWeight: 'bold', 
+                fontSize: '1rem', 
+                textAlign: 'left', 
+                cursor: 'pointer' 
+              }}>
+              🏠 Page d'accueil
             </button>
-            <h2 className="text-2xl font-bold mb-2">{selectedDoc.title}</h2>
-            <p className="text-slate-400 text-sm mb-6">Renseignez les informations demandées.</p>
-            
-            <form onSubmit={handleSubmitForm} className="space-y-4">
-              {selectedDoc.fields.map((field) => (
-                <div key={field.name}>
-                  <label className="block text-sm font-medium mb-1.5">{field.label}</label>
-                  {field.type === 'textarea' ? (
-                    <textarea
-                      required={field.required}
-                      rows={3}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:border-amber-500 outline-none"
-                      placeholder={field.placeholder}
-                      value={formData[field.name] || ''}
-                      onChange={(e) => handleInputChange(field.name, e.target.value)}
-                    />
-                  ) : (
-                    <input
-                      type={field.type}
-                      required={field.required}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:border-amber-500 outline-none"
-                      placeholder={field.placeholder}
-                      value={formData[field.name] || ''}
-                      onChange={(e) => handleInputChange(field.name, e.target.value)}
-                    />
-                  )}
-                </div>
-              ))}
-              <button
-                type="submit"
-                className="w-full mt-6 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 rounded-lg transition"
-              >
-                Vérifier l’aperçu
-              </button>
-            </form>
+
+            <button 
+              onClick={() => { setStep('admin_login'); setIsMenuOpen(false); }}
+              style={{ 
+                backgroundColor: '#1C2541', 
+                color: '#F72585 !important', 
+                border: '1px solid #F72585', 
+                padding: '1rem', 
+                borderRadius: '10px', 
+                fontWeight: 'bold', 
+                fontSize: '1rem', 
+                textAlign: 'left', 
+                cursor: 'pointer' 
+              }}>
+              🔒 Espace Administration
+            </button>
+
+            <div>
+              <h3 style={{ fontSize: '0.85rem', color: '#D1D5DB !important', textTransform: 'uppercase', marginBottom: '0.8rem', letterSpacing: '1px' }}>
+                Tous les documents
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                {sortedDocuments.map((doc) => (
+                  <div 
+                    key={doc.id}
+                    onClick={() => handleSelectDoc(doc)}
+                    style={{ 
+                      backgroundColor: '#1C2541', 
+                      padding: '0.9rem 1rem', 
+                      borderRadius: '8px', 
+                      border: '1px solid #3A506B', 
+                      cursor: 'pointer', 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center' 
+                    }}>
+                    <span style={{ fontSize: '0.95rem', color: '#FFFFFF !important', fontWeight: '500' }}>{doc.title}</span>
+                    <span style={{ fontSize: '0.85rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>{doc.price}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Étape 3 : Aperçu avec Filigrane Spécimen */}
-        {step === 'review' && selectedDoc && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <button onClick={() => setStep('form')} className="flex items-center text-sm text-slate-400 hover:text-white">
-                <ArrowLeft className="h-4 w-4 mr-1" /> Modifier les informations
-              </button>
-              <button
-                onClick={() => setStep('payment')}
-                className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-6 py-2.5 rounded-lg transition"
-              >
-                Procéder au paiement ({selectedDoc.price.toLocaleString()} FCFA)
+        <main style={{ maxWidth: '600px', margin: '0 auto', padding: '1.5rem' }}>
+
+          {/* BARRE DE RETOUR */}
+          {step !== 'home' && (
+            <div style={{ marginBottom: '1rem' }}>
+              <button 
+                onClick={handleBack}
+                style={{ background: 'none', border: 'none', color: '#4CC9F0 !important', fontSize: '0.9rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 'bold' }}>
+                ⬅️ Page précédente
               </button>
             </div>
+          )}
 
-            <div className="bg-white text-slate-950 p-8 rounded-xl shadow-2xl relative overflow-hidden min-h-[500px]">
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-                <span className="text-6xl font-black text-slate-200/50 -rotate-45 tracking-widest uppercase">
-                  SPÉCIMEN
+          {/* 1. ACCUEIL DYNAMIQUE */}
+          {step === 'home' && (
+            <div>
+              <section style={{ textAlign: 'center', padding: '1rem 0 2rem 0', position: 'relative' }}>
+                
+                {/* LOGO HERO ANIMÉ */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
+                  <div className="hero-logo-box" style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '20px', border: '1px solid #3A506B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <AppLogo size={52} />
+                  </div>
+                </div>
+
+                <h1 style={{ fontSize: '2rem', fontWeight: '800', lineHeight: 1.25, marginBottom: '0.8rem', color: '#FFFFFF !important' }}>
+                  Vos documents officiels prêts en 2 minutes.
+                </h1>
+                
+                <p style={{ color: '#D1D5DB !important', fontSize: '0.95rem', marginBottom: '1.8rem', lineHeight: '1.5' }}>
+                  Remplissez votre formulaire, visualisez le résultat et téléchargez votre fichier au format PDF certifié.
+                </p>
+
+                {/* BANDEROLE D'AVANTAGES DYNAMIQUES */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '2rem' }}>
+                  <div style={{ backgroundColor: '#1C2541', padding: '0.75rem 0.5rem', borderRadius: '10px', border: '1px solid #3A506B', textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.2rem', display: 'block' }}>⚡</span>
+                    <span style={{ fontSize: '0.7rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>Instantané</span>
+                  </div>
+                  <div style={{ backgroundColor: '#1C2541', padding: '0.75rem 0.5rem', borderRadius: '10px', border: '1px solid #3A506B', textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.2rem', display: 'block' }}>🔒</span>
+                    <span style={{ fontSize: '0.7rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>Conforme</span>
+                  </div>
+                  <div style={{ backgroundColor: '#1C2541', padding: '0.75rem 0.5rem', borderRadius: '10px', border: '1px solid #3A506B', textAlign: 'center' }}>
+                    <span style={{ fontSize: '1.2rem', display: 'block' }}>📄</span>
+                    <span style={{ fontSize: '0.7rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>Format PDF</span>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                  <h2 style={{ fontSize: '1.2rem', margin: 0, color: '#FFFFFF !important', fontWeight: 'bold' }}>📋 Choisissez votre document</h2>
+                  <span style={{ fontSize: '0.75rem', color: '#4CC9F0 !important', fontWeight: '600' }}>Prix croissants</span>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {sortedDocuments.map((doc) => (
+                    <div 
+                      key={doc.id}
+                      onClick={() => handleSelectDoc(doc)}
+                      className="card-hover"
+                      style={{ backgroundColor: '#1C2541', borderRadius: '14px', padding: '1.2rem', border: '1px solid #3A506B', cursor: 'pointer' }}>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#4CC9F0 !important', fontWeight: 'bold', letterSpacing: '0.5px' }}>{doc.category}</span>
+                        {doc.badge && (
+                          <span style={{ backgroundColor: '#4361EE', color: '#FFFFFF !important', fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>
+                            {doc.badge}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <h3 style={{ fontSize: '1.15rem', margin: '0.4rem 0', color: '#FFFFFF !important', fontWeight: 'bold' }}>{doc.title}</h3>
+                      <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', margin: '0 0 1rem 0', lineHeight: '1.4' }}>{doc.desc}</p>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 'bold', color: '#FFFFFF !important', fontSize: '1rem' }}>{doc.price}</span>
+                        <span style={{ color: '#4CC9F0 !important', fontWeight: 'bold', fontSize: '0.9rem' }}>Créer le document →</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* 2. FORMULAIRE DYNAMIQUE */}
+          {step === 'form' && selectedDoc && (
+            <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <span style={{ fontSize: '0.85rem', color: '#4CC9F0 !important', fontWeight: 'bold', display: 'block', marginBottom: '0.2rem' }}>
+                  Création de votre {selectedDoc.title}
                 </span>
-              </div>
-              <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-center">
-                <h2 className="text-xl font-bold uppercase">{selectedDoc.title}</h2>
-                <span className="text-xs text-slate-500">DocExpress Document Officiel</span>
-              </div>
-              <div className="space-y-4 text-sm leading-relaxed">
-                {Object.entries(formData).map(([key, val]) => (
-                  <p key={key}>
-                    <strong className="capitalize">{key.replace('_', ' ')} :</strong> {val}
-                  </p>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Étape 4 : Paiement Orange Money */}
-        {step === 'payment' && selectedDoc && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 max-w-md mx-auto">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <CreditCard className="mr-2 text-amber-500" /> Paiement Orange Money
-            </h2>
-
-            <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 mb-6 text-sm space-y-2">
-              <p className="text-slate-400">Effectuez le transfert manuel vers le numéro :</p>
-              <p className="text-lg font-mono font-bold text-amber-500">#150*1*1*655069396*#{selectedDoc.price}#</p>
-              <p className="text-xs text-slate-500">Montant à régler : {selectedDoc.price.toLocaleString()} FCFA</p>
-            </div>
-
-            <form onSubmit={handlePaymentSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm mb-1.5">Votre numéro expéditeur Orange Money</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: 655069396"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:border-amber-500 outline-none"
-                  value={userPhone}
-                  onChange={(e) => setUserPhone(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1.5">Référence de Transaction SMS</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: PP223434.5421.A12436"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:border-amber-500 outline-none"
-                  value={transactionRef}
-                  onChange={(e) => setTransactionRef(e.target.value)}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-3 rounded-lg transition flex items-center justify-center"
-              >
-                {loading ? <RefreshCw className="animate-spin h-5 w-5" /> : 'Valider ma commande'}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Étape 5 : Attente de validation */}
-        {step === 'pending' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-8 text-center max-w-md mx-auto space-y-4">
-            <Clock className="h-12 w-12 text-amber-500 mx-auto animate-pulse" />
-            <h2 className="text-2xl font-bold">Vérification du paiement...</h2>
-            <p className="text-sm text-slate-400">
-              Votre demande est enregistrée. Dès que le transfert Orange Money est vérifié, le téléchargement sera débloqué automatiquement.
-            </p>
-            <div className="text-xs text-slate-500 bg-slate-950 p-3 rounded">
-              Référence SMS : <span className="font-mono text-slate-300">{transactionRef}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Étape 6 : Téléchargement PDF */}
-        {step === 'success' && (
-          <div className="space-y-6">
-            <div className="bg-emerald-950/40 border border-emerald-800 p-4 rounded-xl flex justify-between items-center">
-              <div className="flex items-center space-x-3">
-                <CheckCircle className="h-6 w-6 text-emerald-500" />
-                <div>
-                  <h3 className="font-bold text-emerald-400">Paiement Validé !</h3>
-                  <p className="text-xs text-slate-300">Votre document officiel est prêt.</p>
+                <h2 style={{ fontSize: '1.2rem', margin: '0 0 0.8rem 0', color: '#FFFFFF !important', fontWeight: 'bold' }}>Étape {formStep} sur 3</h2>
+                <div style={{ backgroundColor: '#0B132B', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ backgroundColor: '#4361EE', width: `${(formStep / 3) * 100}%`, height: '100%', transition: 'width 0.3s' }}></div>
                 </div>
               </div>
-              <button
-                onClick={generatePDF}
-                disabled={isGeneratingPDF}
-                className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-4 py-2 rounded-lg flex items-center text-sm transition"
-              >
-                {isGeneratingPDF ? <RefreshCw className="animate-spin h-4 w-4 mr-2" /> : <Download className="h-4 w-4 mr-2" />}
-                Télécharger le PDF
-              </button>
-            </div>
 
-            <div ref={documentRef} className="bg-white text-slate-950 p-10 rounded-xl shadow-2xl min-h-[600px]">
-              <div className="border-b-2 border-slate-900 pb-4 mb-6 flex justify-between items-center">
-                <h1 className="text-2xl font-bold uppercase">{selectedDoc?.title || currentOrder?.doc_title}</h1>
-                <span className="text-xs text-slate-500">DocExpress - Document Officiel</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {selectedDoc.fields
+                  .filter(f => f.step === formStep)
+                  .map(field => (
+                    <div key={field.id}>
+                      <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>
+                        {field.label} {field.required && '*'}
+                      </label>
+                      {field.type === 'textarea' ? (
+                        <textarea
+                          value={formData[field.id] || ''}
+                          onChange={(e) => handleInputChange(field.id, e.target.value)}
+                          placeholder={field.placeholder}
+                          style={{ ...inputStyle, minHeight: '90px' }}
+                        />
+                      ) : field.type === 'select' ? (
+                        <select
+                          value={formData[field.id] || ''}
+                          onChange={(e) => handleInputChange(field.id, e.target.value)}
+                          style={inputStyle}>
+                          <option value="">Sélectionnez...</option>
+                          {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                        </select>
+                      ) : (
+                        <input
+                          type={field.type}
+                          value={formData[field.id] || ''}
+                          onChange={(e) => handleInputChange(field.id, e.target.value)}
+                          placeholder={field.placeholder}
+                          style={inputStyle}
+                        />
+                      )}
+                    </div>
+                  ))}
               </div>
-              <div className="space-y-4 text-sm leading-relaxed">
-                {currentOrder?.form_data && Object.entries(currentOrder.form_data).map(([key, val]) => (
-                  <p key={key}>
-                    <strong className="capitalize">{key.replace('_', ' ')} :</strong> {val}
-                  </p>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                <button onClick={handleBack} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFFFFF !important', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Retour
+                </button>
+                
+                {formStep < 3 ? (
+                  <button onClick={() => setFormStep(formStep + 1)} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    Continuer →
+                  </button>
+                ) : (
+                  <button onClick={() => setStep('review')} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    Vérifier mes infos →
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 3. ÉCRAN DE VÉRIFICATION */}
+          {step === 'review' && selectedDoc && (
+            <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+              <h2 style={{ fontSize: '1.2rem', color: '#4CC9F0 !important', marginBottom: '1rem', fontWeight: 'bold' }}>🔍 Vérifiez vos informations</h2>
+              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem' }}>
+                {selectedDoc.fields.map(field => (
+                  formData[field.id] ? (
+                    <div key={field.id} style={{ borderBottom: '1px solid #1C2541', paddingBottom: '0.4rem' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#D1D5DB !important', display: 'block' }}>{field.label}</span>
+                      <span style={{ fontSize: '0.9rem', color: '#FFFFFF !important', fontWeight: 'bold' }}>{formData[field.id]}</span>
+                    </div>
+                  ) : null
                 ))}
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* Étape 7 : Espace Administration */}
-        {step === 'admin' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">Tableau de Bord Administrateur</h2>
-              <button onClick={() => setStep('catalog')} className="text-xs text-slate-400 hover:text-white">Fermer</button>
-            </div>
-
-            {adminPin !== '1234' ? (
-              <div className="max-w-xs mx-auto space-y-4 py-8">
-                <input
-                  type="password"
-                  placeholder="Code PIN Admin (ex: 1234)"
-                  className="w-full bg-slate-950 border border-slate-800 rounded p-2.5 text-center text-sm outline-none"
-                  value={adminPin}
-                  onChange={(e) => setAdminPin(e.target.value)}
-                />
-                <button
-                  onClick={fetchOrders}
-                  className="w-full bg-amber-500 text-slate-950 font-bold py-2 rounded text-sm"
-                >
-                  Accéder
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button onClick={() => setStep('form')} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFFFFF !important', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  ✏️ Modifier
+                </button>
+                <button onClick={handleProcessDocument} disabled={isGeneratingContent} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  {isGeneratingContent ? 'Génération...' : '🚀 Générer mon document →'}
                 </button>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-slate-400">
-                  <thead className="bg-slate-950 text-slate-200">
-                    <tr>
-                      <th className="p-3">Document</th>
-                      <th className="p-3">Téléphone</th>
-                      <th className="p-3">Réf. SMS</th>
-                      <th className="p-3">Montant</th>
-                      <th className="p-3">Statut</th>
-                      <th className="p-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ordersList.map((ord) => (
-                      <tr key={ord.id} className="border-b border-slate-800">
-                        <td className="p-3 font-medium text-slate-200">{ord.doc_title}</td>
-                        <td className="p-3">{ord.user_phone}</td>
-                        <td className="p-3 font-mono text-amber-500">{ord.transaction_ref}</td>
-                        <td className="p-3">{ord.amount} FCFA</td>
-                        <td className="p-3">
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${
-                            ord.status === 'APPROVED' ? 'bg-emerald-500/10 text-emerald-500' :
-                            ord.status === 'REJECTED' ? 'bg-red-500/10 text-red-500' : 'bg-amber-500/10 text-amber-500'
-                          }`}>
-                            {ord.status}
-                          </span>
-                        </td>
-                        <td className="p-3 space-x-2">
-                          {ord.status === 'PENDING' && (
-                            <>
-                              <button
-                                onClick={() => updateOrderStatus(ord.id, 'APPROVED')}
-                                className="bg-emerald-500 text-slate-950 text-xs px-2.5 py-1 rounded font-bold"
-                              >
-                                Valider
-                              </button>
-                              <button
-                                onClick={() => updateOrderStatus(ord.id, 'REJECTED')}
-                                className="bg-red-500/20 text-red-400 text-xs px-2.5 py-1 rounded"
-                              >
-                                Rejeter
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
+            </div>
+          )}
 
-      <footer className="border-t border-slate-800 text-center py-4 text-xs text-slate-500">
-        © 2026 DocExpress. Tous droits réservés. Développé avec soin par Désiré Atangana.
+          {/* 4. APERÇU SPÉCIMEN */}
+          {step === 'preview' && selectedDoc && (
+            <div>
+              <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', textAlign: 'center', color: '#FFFFFF !important', fontWeight: 'bold' }}>Aperçu de votre document</h2>
+              
+              <div style={{ backgroundColor: '#FFFFFF', padding: '1.5rem', borderRadius: '8px', position: 'relative', overflow: 'hidden', minHeight: '350px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontFamily: "'Times New Roman', Times, serif" }}>
+                <style>{`
+                  .preview-document * {
+                    color: #000000 !important;
+                  }
+                `}</style>
+
+                <div style={{ position: 'absolute', top: '35%', left: '5%', right: '5%', transform: 'rotate(-25deg)', fontSize: '2.2rem', fontWeight: '900', color: 'rgba(230, 57, 70, 0.18) !important', pointerEvents: 'none', userSelect: 'none', textAlign: 'center', border: '4px dashed rgba(230, 57, 70, 0.25)', padding: '10px' }}>
+                  SPÉCIMEN - DOCEXPRESS
+                </div>
+
+                <div className="preview-document" style={{ fontSize: '0.85rem', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: generatedBody }} />
+              </div>
+
+              <div style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+                <div>
+                  <span style={{ fontSize: '0.9rem', display: 'block', color: '#FFFFFF !important', fontWeight: 'bold' }}>{selectedDoc.title}</span>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#4CC9F0 !important' }}>{selectedDoc.price}</span>
+                </div>
+                <button onClick={() => setStep('payment')} style={{ backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem 1.2rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Payer pour télécharger →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 5. PAIEMENT MANUEL ORANGE MONEY */}
+          {step === 'payment' && selectedDoc && (
+            <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+              <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#FFFFFF !important', fontWeight: 'bold' }}>Paiement Orange Money</h2>
+              <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', marginBottom: '1rem' }}>
+                Effectuez un transfert du montant exact vers le numéro ci-dessous, puis saisissez les informations de votre SMS de confirmation.
+              </p>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid #3A506B', marginBottom: '1.5rem', color: '#FFFFFF !important' }}>
+                <span style={{ fontWeight: 'bold' }}>{selectedDoc.title}</span>
+                <span style={{ fontWeight: 'bold', color: '#4CC9F0 !important' }}>{selectedDoc.price}</span>
+              </div>
+
+              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FF7900', marginBottom: '1.5rem' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FF7900 !important' }}>🟠 Numéro Orange Money</span>
+                <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.2rem', letterSpacing: '1px', color: '#FFFFFF !important' }}>+237 655 06 93 96</p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>Votre Numéro Expéditeur (Orange Money)</label>
+                  <input 
+                    type="text" 
+                    value={senderPhoneInput} 
+                    onChange={(e) => setSenderPhoneInput(e.target.value)} 
+                    placeholder="Ex: 655XXXXXX"
+                    style={inputStyle}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>Référence de Transaction SMS</label>
+                  <input 
+                    type="text" 
+                    value={transactionRefInput} 
+                    onChange={(e) => setTransactionRefInput(e.target.value)} 
+                    placeholder="Ex: PP260914.XXXX.XXXXX"
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+
+              <button 
+                onClick={handleInitiatePayment} 
+                disabled={isSubmittingPayment}
+                style={{ width: '100%', backgroundColor: '#FF7900', color: '#FFFFFF !important', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
+                {isSubmittingPayment ? 'Enregistrement en cours...' : '✅ VALIDER MA COMMANDE'}
+              </button>
+            </div>
+          )}
+
+          {/* 6. ÉCRAN D'ATTENTE CLIENT */}
+          {step === 'pending' && currentOrder && (
+            <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
+              <div style={{ width: '50px', height: '50px', border: '4px solid #1C2541', borderTop: '4px solid #4CC9F0', borderRadius: '50%', margin: '0 auto 1.5rem auto' }} />
+              
+              <h2 style={{ fontSize: '1.3rem', color: '#4CC9F0 !important', marginBottom: '0.5rem', fontWeight: 'bold' }}>Vérification du paiement en cours...</h2>
+              <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', marginBottom: '1.5rem' }}>
+                Votre demande a bien été transmise dans Supabase. Dès confirmation de votre dépôt par l'administration, votre document PDF sera automatiquement disponible ci-dessous.
+              </p>
+
+              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', textAlign: 'left', fontSize: '0.85rem' }}>
+                <p style={{ margin: '0 0 0.5rem 0', color: '#D1D5DB !important' }}>ID Commande Supabase : <strong style={{ color: '#FFFFFF !important' }}>{currentOrder.id}</strong></p>
+                <p style={{ margin: '0 0 0.5rem 0', color: '#D1D5DB !important' }}>Document : <strong style={{ color: '#FFFFFF !important' }}>{currentOrder.docTitle}</strong></p>
+                <p style={{ margin: '0 0 0.5rem 0', color: '#D1D5DB !important' }}>Expéditeur : <strong style={{ color: '#FFFFFF !important' }}>{currentOrder.senderPhone}</strong></p>
+                <p style={{ margin: 0, color: '#D1D5DB !important' }}>Montant : <strong style={{ color: '#4CC9F0 !important' }}>{currentOrder.price}</strong></p>
+              </div>
+            </div>
+          )}
+
+          {/* 7. TÉLÉCHARGEMENT FINAL */}
+          {step === 'success' && (selectedDoc || currentOrder) && (
+            <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
+              <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0 !important', marginBottom: '0.5rem', fontWeight: 'bold' }}>Paiement Confirmé !</h2>
+              <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', marginBottom: '1.5rem' }}>
+                Votre document a été validé. Vous pouvez le télécharger au format PDF officiel.
+              </p>
+
+              {/* ELEMENT MASQUÉ POUR IMPRESSION PDF */}
+              <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFFFFF', color: '#000000', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
+                  <div className="preview-document" style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: currentOrder?.generatedBody || generatedBody }} />
+                </div>
+              </div>
+
+              <button 
+                onClick={generatePDF}
+                disabled={isGeneratingPDF}
+                style={{ width: '100%', backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1rem' }}>
+                {isGeneratingPDF ? 'Téléchargement...' : '⬇️ TÉLÉCHARGER MON PDF'}
+              </button>
+
+              <button 
+                onClick={() => setStep('home')}
+                style={{ width: '100%', backgroundColor: '#0B132B', color: '#D1D5DB !important', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer' }}>
+                🏠 Créer un autre document
+              </button>
+            </div>
+          )}
+
+          {/* 8. CONNEXION ADMIN */}
+          {step === 'admin_login' && (
+            <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
+              <h2 style={{ fontSize: '1.2rem', color: '#F72585 !important', marginBottom: '1rem', fontWeight: 'bold' }}>🔒 Espace Administration</h2>
+              <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>Code PIN Accès</label>
+                  <input 
+                    type="password" 
+                    value={adminPinInput} 
+                    onChange={(e) => setAdminPinInput(e.target.value)} 
+                    placeholder="Entrez le code PIN (ex: 1234)"
+                    style={inputStyle}
+                  />
+                </div>
+                {adminPinError && <p style={{ color: '#E63946 !important', fontSize: '0.8rem', margin: 0 }}>Code PIN incorrect.</p>}
+                <button type="submit" style={{ backgroundColor: '#F72585', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Se connecter
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* 9. DASHBOARD ADMIN */}
+          {step === 'admin_dashboard' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.2rem', color: '#F72585 !important', margin: 0, fontWeight: 'bold' }}>📊 Suivi des Paiements Supabase</h2>
+                <button onClick={() => setStep('home')} style={{ backgroundColor: '#0B132B', color: '#FFFFFF !important', border: '1px solid #3A506B', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                  Quitter
+                </button>
+              </div>
+
+              {orders.length === 0 ? (
+                <p style={{ color: '#D1D5DB !important', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande enregistrée dans Supabase pour le moment.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {sortedDocuments?.length > 0 && orders.map((ord) => (
+
+                    <div key={ord.id} style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '10px', border: '1px solid #3A506B', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 'bold', color: '#4CC9F0 !important', fontSize: '0.85rem' }}>{ord.id}</span>
+                        <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: ord.status === 'APPROVED' ? 'rgba(37, 211, 102, 0.2)' : 'rgba(247, 37, 133, 0.2)', color: ord.status === 'APPROVED' ? '#25D366 !important' : '#F72585 !important', fontWeight: 'bold' }}>
+                          {ord.status === 'APPROVED' ? 'VALIDE' : 'EN ATTENTE'}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: '0.85rem', color: '#FFFFFF !important' }}>
+                        <p style={{ margin: '0 0 0.2rem 0' }}>Document : <strong>{ord.docTitle}</strong></p>
+                        <p style={{ margin: '0 0 0.2rem 0' }}>Montant : <strong>{ord.price}</strong></p>
+                        <p style={{ margin: '0 0 0.2rem 0' }}>Expéditeur OM : <strong>{ord.senderPhone}</strong></p>
+                        <p style={{ margin: 0 }}>Réf SMS : <strong>{ord.transactionRef || 'N/A'}</strong> ({ord.createdAt})</p>
+                      </div>
+
+                      {ord.status === 'PENDING' && (
+                        <button 
+                          onClick={() => handleApproveOrder(ord.id)}
+                          style={{ marginTop: '0.5rem', backgroundColor: '#25D366', color: '#FFFFFF !important', border: 'none', padding: '0.6rem', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>
+                          ✅ Valider le paiement
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+        </main>
+      </div>
+
+      {/* FOOTER DISCRET ET ÉLÉGANT */}
+      <footer style={{ borderTop: '1px solid #1C2541', padding: '1.2rem', textAlign: 'center', backgroundColor: '#0B132B', marginTop: '2rem' }}>
+        <p style={{ fontSize: '0.75rem', color: '#6B7280 !important', margin: 0 }}>
+          © 2026 DocExpress. Tous droits réservés.
+        </p>
+        <p style={{ fontSize: '0.65rem', color: '#4B5563 !important', margin: '0.3rem 0 0 0' }}>
+          Développé avec soin par Désiré Atangana Atangana
+        </p>
       </footer>
+
     </div>
   );
 }
