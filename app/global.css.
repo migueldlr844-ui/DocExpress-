@@ -1,8 +1,10 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #0B0F19;
+  --foreground: #FFFFFF;
 }
 
 body {
@@ -13,32 +15,8 @@ body {
   padding: 0;
 }
 
-/* Correctifs de lisibilité explicites */
-header {
-  background-color: #1e3a8a !important;
-  color: #ffffff !important;
-}
-
-main {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
-}
-
 h1, h2, h3, h4, p, label, span {
   color: inherit;
-}
-
-.bg-white {
-  background-color: #ffffff !important;
-  color: #0f172a !important;
-}
-
-.text-gray-900, .text-gray-800, .text-gray-700 {
-  color: #0f172a !important;
-}
-
-.text-gray-600, .text-gray-500 {
-  color: #475569 !important;
 }
 
 button {
