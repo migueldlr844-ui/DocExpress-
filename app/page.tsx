@@ -759,7 +759,7 @@ export default function Home() {
         </button>
       </header>
 
-      {/* MENU MOBILE PLEIN ÉCRAN CORRIGÉ */}
+      {/* MENU MOBILE PLEIN ÉCRAN */}
       {isMenuOpen && (
         <div style={{
           position: 'fixed',
@@ -849,7 +849,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* 1. ACCUEIL */}
+        {/* 1. ACCUEIL (TEXTES CORRIGÉS EN BLANC ET CLAIR) */}
         {step === 'home' && (
           <div>
             <section style={{ textAlign: 'center', padding: '1.5rem 0' }}>
@@ -867,7 +867,7 @@ export default function Home() {
               }}>
                 UNE CRÉATION DE DESIRE ATANGANA ATANGANA
               </div>
-              <h1 style={{ fontSize: '1.8rem', fontWeight: '800', lineHeight: 1.2, marginBottom: '0.8rem' }}>
+              <h1 style={{ fontSize: '1.8rem', fontWeight: '800', lineHeight: 1.2, marginBottom: '0.8rem', color: '#FFFFFF' }}>
                 Vos documents professionnels rédigés sur mesure.
               </h1>
               <p style={{ color: '#8D99AE', fontSize: '0.95rem', marginBottom: '1.5rem' }}>
@@ -877,7 +877,7 @@ export default function Home() {
 
             <section>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h2 style={{ fontSize: '1.2rem', margin: 0 }}>🔥 Choisissez votre document</h2>
+                <h2 style={{ fontSize: '1.2rem', margin: 0, color: '#FFFFFF' }}>🔥 Choisissez votre document</h2>
                 <span style={{ fontSize: '0.75rem', color: '#8D99AE', fontStyle: 'italic' }}>Du - au + coûteux</span>
               </div>
               
@@ -895,7 +895,7 @@ export default function Home() {
                         </span>
                       )}
                     </div>
-                    <h3 style={{ fontSize: '1.1rem', margin: '0.4rem 0' }}>{doc.title}</h3>
+                    <h3 style={{ fontSize: '1.1rem', margin: '0.4rem 0', color: '#FFFFFF' }}>{doc.title}</h3>
                     <p style={{ fontSize: '0.85rem', color: '#8D99AE', margin: '0 0 1rem 0' }}>{doc.desc}</p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 'bold', color: '#FFF' }}>{doc.price}</span>
@@ -913,7 +913,7 @@ export default function Home() {
           <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
             <div style={{ marginBottom: '1.5rem' }}>
               <span style={{ fontSize: '0.8rem', color: '#4CC9F0' }}>Création de votre {selectedDoc.title}</span>
-              <h2 style={{ fontSize: '1.2rem', margin: '0.2rem 0 0.8rem 0' }}>Étape {formStep} sur 3</h2>
+              <h2 style={{ fontSize: '1.2rem', margin: '0.2rem 0 0.8rem 0', color: '#FFF' }}>Étape {formStep} sur 3</h2>
               <div style={{ backgroundColor: '#0B132B', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
                 <div style={{ backgroundColor: '#4361EE', width: `${(formStep / 3) * 100}%`, height: '100%', transition: 'width 0.3s' }}></div>
               </div>
@@ -1002,7 +1002,7 @@ export default function Home() {
         {/* 4. APERÇU SPÉCIMEN */}
         {step === 'preview' && selectedDoc && (
           <div>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', textAlign: 'center' }}>Aperçu de votre document</h2>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', textAlign: 'center', color: '#FFF' }}>Aperçu de votre document</h2>
             
             <div style={{ backgroundColor: '#FFF', color: '#111', padding: '1.5rem', borderRadius: '8px', position: 'relative', overflow: 'hidden', minHeight: '350px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontFamily: "'Times New Roman', Times, serif" }}>
               <div style={{ position: 'absolute', top: '35%', left: '5%', right: '5%', transform: 'rotate(-25deg)', fontSize: '2.2rem', fontWeight: '900', color: 'rgba(230, 57, 70, 0.18)', pointerEvents: 'none', userSelect: 'none', textAlign: 'center', border: '4px dashed rgba(230, 57, 70, 0.25)', padding: '10px' }}>
@@ -1014,7 +1014,7 @@ export default function Home() {
 
             <div style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
               <div>
-                <span style={{ fontSize: '0.9rem', display: 'block' }}>{selectedDoc.title}</span>
+                <span style={{ fontSize: '0.9rem', display: 'block', color: '#FFF' }}>{selectedDoc.title}</span>
                 <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#4CC9F0' }}>{selectedDoc.price}</span>
               </div>
               <button onClick={() => setStep('payment')} style={{ backgroundColor: '#4361EE', color: '#FFF', border: 'none', padding: '0.8rem 1.2rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
@@ -1027,19 +1027,19 @@ export default function Home() {
         {/* 5. PAIEMENT MANUEL ORANGE MONEY */}
         {step === 'payment' && selectedDoc && (
           <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem' }}>Paiement Orange Money</h2>
+            <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#FFF' }}>Paiement Orange Money</h2>
             <p style={{ fontSize: '0.85rem', color: '#8D99AE', marginBottom: '1rem' }}>
               Effectuez un transfert du montant exact vers le numéro ci-dessous, puis saisissez les informations de votre SMS de confirmation.
             </p>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid #3A506B', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid #3A506B', marginBottom: '1.5rem', color: '#FFF' }}>
               <span>{selectedDoc.title}</span>
               <span style={{ fontWeight: 'bold', color: '#4CC9F0' }}>{selectedDoc.price}</span>
             </div>
 
             <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FF7900', marginBottom: '1.5rem' }}>
               <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FF7900' }}>🟠 Numéro Orange Money</span>
-              <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.2rem', letterSpacing: '1px' }}>+237 655 06 93 96</p>
+              <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.2rem', letterSpacing: '1px', color: '#FFF' }}>+237 655 06 93 96</p>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -1171,7 +1171,7 @@ export default function Home() {
                       </span>
                     </div>
 
-                    <div style={{ fontSize: '0.85rem' }}>
+                    <div style={{ fontSize: '0.85rem', color: '#FFF' }}>
                       <p style={{ margin: '0 0 0.2rem 0' }}>Document : <strong>{ord.docTitle}</strong></p>
                       <p style={{ margin: '0 0 0.2rem 0' }}>Montant : <strong>{ord.price}</strong></p>
                       <p style={{ margin: '0 0 0.2rem 0' }}>Expéditeur OM : <strong>{ord.senderPhone}</strong></p>
