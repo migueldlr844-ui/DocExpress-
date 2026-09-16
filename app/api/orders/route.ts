@@ -1,27 +1,35 @@
-async function handleCommander() {
+import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
+
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+)
+
+export async function POST(req: Request) {
   try {
-    const response = await fetch('/api/orders', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        documentType: 'Certificat de Cession', // le type de document
-        formData: dataDuFormulaire,             // les infos du document saisies par l'utilisateur
-      }),
-    })
+    const body = await req.json()
+    
+    const { data, error } = await supabaseAdmin
+      .from('orders')
+      .insert([
+        {
+          document_type: body.documentType,
+          form_data: body.formData,
+          status: 'PENDING_PAYMENT',
+          created_at: new Date().toISOString()
+        }
+      ])
+      .select()
+      .single()
 
-    const result = await response.json()
-
-    if (!response.ok) {
-      throw new Error(result.error || 'Erreur lors de la création')
+    if (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 })
     }
 
-    //  La commande a été créée avec succès dans Supabase !
-    //  On redirige l'utilisateur vers l'écran de paiement avec l'ID de sa commande
-    window.location.href = `/paiement/${result.orderId}`
-
-  } catch (error) {
-    alert("Impossible de créer la commande : " + error.message)
+    return NextResponse.json({ success: true, orderId: data.id })
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Erreur serveur'
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
