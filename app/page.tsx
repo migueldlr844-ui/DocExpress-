@@ -1166,8 +1166,8 @@ export default function Home() {
                 Votre document a été validé. Vous pouvez le télécharger au format PDF officiel.
               </p>
 
-              {/* ELEMENT MASQUÉ POUR IMPRESSION PDF */}
-              <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+              {/* ÉLÉMENT MASQUÉ (COMPATIBLE SAFARI & WEBKit MOBILE) */}
+              <div style={{ position: 'fixed', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -9999 }}>
                 <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFFFFF', color: '#000000', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
                   <div className="preview-document" style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: currentOrder?.generatedBody || generatedBody }} />
                 </div>
@@ -1211,7 +1211,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* 9. DASHBOARD ADMIN */}
+          {/* 9. DASHBOARD ADMIN (RÉPARÉ) */}
           {step === 'admin_dashboard' && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -1225,8 +1225,7 @@ export default function Home() {
                 <p style={{ color: '#D1D5DB !important', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande enregistrée dans Supabase pour le moment.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {sortedDocuments?.length > 0 && orders.map((ord) => (
-
+                  {orders.map((ord) => (
                     <div key={ord.id} style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '10px', border: '1px solid #3A506B', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 'bold', color: '#4CC9F0 !important', fontSize: '0.85rem' }}>{ord.id}</span>
