@@ -16,6 +16,9 @@ export async function POST(req: Request) {
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey)
     const body = await req.json()
     
+    // Génération d'un numéro de commande si non fourni
+    const generatedOrderNumber = body.orderNumber || `ORD-${Date.now()}`
+
     const { data, error } = await supabaseAdmin
       .from('orders')
       .insert([
@@ -23,6 +26,8 @@ export async function POST(req: Request) {
           document_type: body.documentType,
           form_data: body.formData,
           status: 'PENDING_PAYMENT',
+          order_number: generatedOrderNumber,
+          document_template_id: body.documentTemplateId || null,
           created_at: new Date().toISOString()
         }
       ])
@@ -30,7 +35,14 @@ export async function POST(req: Request) {
       .single()
 
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 })
+      // Retourne les détails complets de l'erreur Supabase pour un diagnostic précis
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `Supabase: ${error.message} | Code: ${error.code} | Details: ${error.details}` 
+        }, 
+        { status: 400 }
+      )
     }
 
     return NextResponse.json({ success: true, orderId: data.id })
