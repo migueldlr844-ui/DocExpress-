@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // --- INITIALISATION SUPABASE ---
 const supabaseUrl = 
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 
+  process.env.NEXT_PUBLICSUPABASE_URL || 
   process.env.SUPABASE_URL || 
   'https://placeholder-url.supabase.co';
 
