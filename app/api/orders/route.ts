@@ -7,8 +7,9 @@ export async function POST(req: Request) {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (!supabaseUrl || !supabaseKey) {
+      console.error("SUPABASE CONFIG ERROR: URL ou Key manquante")
       return NextResponse.json(
-        { success: false, error: 'Configuration Supabase manquante' },
+        { success: false, error: 'Configuration Supabase manquante dans les variables d\'environnement' },
         { status: 500 }
       )
     }
@@ -16,6 +17,13 @@ export async function POST(req: Request) {
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey)
     const body = await req.json()
     
+    // Log sécurisé des données reçues sans informations ultra-sensibles
+    console.log("DONNÉES REÇUES POUR COMMANDE :", {
+      documentType: body?.documentType,
+      hasFormData: Boolean(body?.formData),
+      documentTemplateId: body?.documentTemplateId
+    })
+
     // Génération d'un numéro de commande si non fourni
     const generatedOrderNumber = body.orderNumber || `ORD-${Date.now()}`
 
@@ -35,11 +43,19 @@ export async function POST(req: Request) {
       .single()
 
     if (error) {
-      // Retourne les détails complets de l'erreur Supabase pour un diagnostic précis
+      // Log serveur détaillé pour Vercel / Terminal
+      console.error("SUPABASE ERROR:", {
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint
+      })
+
+      // Retourne le détail complet à la page web pour affichage direct
       return NextResponse.json(
         { 
           success: false, 
-          error: `Supabase: ${error.message} | Code: ${error.code} | Details: ${error.details}` 
+          error: `Code: ${error.code} | Message: ${error.message} | Details: ${error.details || 'Aucun'} | Hint: ${error.hint || 'Aucun'}` 
         }, 
         { status: 400 }
       )
@@ -48,6 +64,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, orderId: data.id })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Erreur serveur'
+    console.error("ERREUR SERVEUR CATCH :", err)
     return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
