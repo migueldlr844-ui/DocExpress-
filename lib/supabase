@@ -1,18 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Configuration Supabase compatible avec toutes tes variables Vercel
-const supabaseUrl = 
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 
-  process.env.SUPABASE_URL || 
-  'https://placeholder-url.supabase.co';
+// Configuration Supabase compatible avec toutes les variables d'environnement
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.SUPABASE_URL ||
+  'https://madkfwcxvhjznidszbhi.supabase.co';
 
-const supabaseAnonKey = 
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-  process.env.SUPABASE_ANON_KEY || 
-  'placeholder-key';
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hZGtmd2N4dmhqem5pZHN6YmhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwNjIwNDMsImV4cCI6MjA3MzYzODA0M30.4i4LqV6_TIs361C-Z4iK6_76wA3YJ6P181O7I8w9Hk0';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
 // Variables d'environnement et secrets centralisés
 export const envConfig = {
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
