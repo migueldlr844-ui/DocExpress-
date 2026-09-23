@@ -6,15 +6,16 @@ import jsPDF from 'jspdf';
 import { createClient } from '@supabase/supabase-js';
 
 // --- INITIALISATION SUPABASE ---
-const supabaseUrl = 
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 
-  process.env.SUPABASE_URL || 
-  https:'//madkfwcxvhjznidszbhi.supabase.co/rest/v1/';
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  process.env.SUPABASE_URL ||
+  'https://madkfwcxvhjznidszbhi.supabase.co';
 
-const supabaseAnonKey = 
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-  process.env.SUPABASE_ANON_KEY || 
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hZGtmd2N4dmhqem5pZHN6YmhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxNzA2NDMsImV4cCI6MjEwNDc0NjY0M30.1ZmrrDQux17ESWR9Jlzku0ohb504GeRS9gP_e9fP1L4';
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hZGtmd2N4dmhqem5pZHN6YmhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwNjIwNDMsImV4cCI6MjA3MzYzODA0M30.4i4LqV6_TIs361C-Z4iK6_76wA3YJ6P181O7I8w9Hk0';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
