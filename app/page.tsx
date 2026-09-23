@@ -9,12 +9,12 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = 
   process.env.NEXT_PUBLIC_SUPABASE_URL || 
   process.env.SUPABASE_URL || 
-  'https://placeholder-url.supabase.co';
+  https:'//madkfwcxvhjznidszbhi.supabase.co/rest/v1/';
 
 const supabaseAnonKey = 
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
   process.env.SUPABASE_ANON_KEY || 
-  'placeholder-key';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hZGtmd2N4dmhqem5pZHN6YmhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxNzA2NDMsImV4cCI6MjEwNDc0NjY0M30.1ZmrrDQux17ESWR9Jlzku0ohb504GeRS9gP_e9fP1L4';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
