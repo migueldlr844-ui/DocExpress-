@@ -566,7 +566,10 @@ export default function Home() {
               .insert([
         {
           order_number: 'CMD-' + Date.now(),
-          document_template_id: selectedDoc.id,
+                   document_template_id: selectedDoc.id,
+          customer_name: formData.nom || formData.fullName || 'Client',
+
+
           amount: selectedDoc.priceNumeric,
           payment_method: 'om_manual',
           sender_phone: senderPhoneInput,
