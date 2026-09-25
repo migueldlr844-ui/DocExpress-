@@ -564,7 +564,8 @@ export default function Home() {
       const { data, error } = await supabase
         .from('orders')
         .insert([
-          {
+          {order_number: 'CMD-' + Date.now(),
+
             amount: selectedDoc.priceNumeric,
             payment_method: 'om_manual',
             sender_phone: senderPhoneInput,
