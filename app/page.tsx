@@ -5,6 +5,10 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { createClient } from '@supabase/supabase-js';
 
+// --- IMPORTS ANIMATION SPLASH SCREEN ---
+import { AnimatePresence } from 'framer-motion';
+import SplashScreen from '@/components/SplashScreen';
+
 // --- INITIALISATION SUPABASE ---
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
