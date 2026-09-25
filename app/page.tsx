@@ -563,12 +563,19 @@ export default function Home() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .insert([
-          {order_number: 'CMD-' + Date.now(),
+              .insert([
+        {
+          order_number: 'CMD-' + Date.now(),
+          document_template_id: selectedDoc.id,
+          amount: selectedDoc.priceNumeric,
+          payment_method: 'om_manual',
+          sender_phone: senderPhoneInput,
+          transaction_ref: transactionRefInput,
+          status: 'pending_verification',
+          doc_title: selectedDoc.title
+        }
+      ])
 
-            amount: selectedDoc.priceNumeric,
-            payment_method: 'om_manual',
-            sender_phone: senderPhoneInput,
             transaction_ref: transactionRefInput,
             status: 'pending_verification',
             doc_title: selectedDoc.title,
