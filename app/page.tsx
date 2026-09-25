@@ -571,12 +571,6 @@ export default function Home() {
           payment_method: 'om_manual',
           sender_phone: senderPhoneInput,
           transaction_ref: transactionRefInput,
-          status: 'pending_verification',
-          doc_title: selectedDoc.title
-        }
-      ])
-
-            transaction_ref: transactionRefInput,
             status: 'pending_verification',
             doc_title: selectedDoc.title,
             form_data: formData,
