@@ -599,7 +599,7 @@ export default function Home() {
       setStep('pending');
     } catch (err: any) {
       console.error('Erreur Supabase :', err);
-      alert('Impossible d\'enregistrer la commande dans Supabase. Vérifiez votre connexion.');
+      alert('Erreur Supabase : ' + (err?.message || JSON.stringify(err)));
     } finally {
       setIsSubmittingPayment(false);
     }
