@@ -4,9 +4,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { createClient } from '@supabase/supabase-js';
-
-// --- IMPORTS ANIMATION SPLASH SCREEN ---
 import { AnimatePresence } from 'framer-motion';
+
+import HeroText from '@/components/HeroText';
+import EditorialList from '@/components/EditorialList';
 import SplashScreen from '@/components/SplashScreen';
 
 // --- INITIALISATION SUPABASE ---
@@ -567,20 +568,16 @@ export default function Home() {
     try {
       const { data, error } = await supabase
         .from('orders')
-              .insert([
-        {
-          order_number: 'CMD-' + Date.now(),
-                     document_template_id: selectedDoc.id,
-          customer_name: formData.nom || formData.fullName || 'Client',
-          customer_phone: senderPhoneInput || formData.phone || '',
-
-
-
-
-          amount: selectedDoc.priceNumeric,
-          payment_method: 'om_manual',
-          sender_phone: senderPhoneInput,
-          transaction_ref: transactionRefInput,
+        .insert([
+          {
+            order_number: 'CMD-' + Date.now(),
+            document_template_id: selectedDoc.id,
+            customer_name: formData.nom || formData.fullName || 'Client',
+            customer_phone: senderPhoneInput || formData.phone || '',
+            amount: selectedDoc.priceNumeric,
+            payment_method: 'om_manual',
+            sender_phone: senderPhoneInput,
+            transaction_ref: transactionRefInput,
             status: 'pending_verification',
             doc_title: selectedDoc.title,
             form_data: formData,
@@ -712,55 +709,10 @@ export default function Home() {
         }
       `}</style>
 
-      {/* 0. ÉCRAN DE BIENVENUE */}
-      {showSplash && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: '#0B132B',
-          zIndex: 9999,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          textAlign: 'center',
-          padding: '2rem'
-        }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <AppLogo size={64} />
-          </div>
-          <div style={{
-            fontSize: '2.2rem',
-            fontWeight: '900',
-            letterSpacing: '3px',
-            color: '#4CC9F0 !important',
-            marginBottom: '0.2rem',
-            textTransform: 'uppercase'
-          }}>
-            DOCEXPRESS
-          </div>
-          <p style={{
-            fontSize: '1rem',
-            color: '#D1D5DB !important',
-            letterSpacing: '1px',
-            fontWeight: '300',
-            margin: 0
-          }}>
-            Générateur de documents officiels
-          </p>
-          <div style={{
-            marginTop: '2rem',
-            width: '35px',
-            height: '35px',
-            border: '3px solid #1C2541',
-            borderTop: '3px solid #4CC9F0',
-            borderRadius: '50%'
-          }} />
-        </div>
-      )}
+      {/* 0. ÉCRAN DE BIENVENUE SPLASH */}
+      <AnimatePresence>
+        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+      </AnimatePresence>
 
       <div>
         {/* EN-TÊTE FIXE AVEC LOGO */}
@@ -890,11 +842,6 @@ export default function Home() {
         )}
 
         <main style={{ maxWidth: '600px', margin: '0 auto', padding: '1.5rem' }}>
-              <AnimatePresence>
-        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
-      </AnimatePresence>
-
-
           {/* BARRE DE RETOUR */}
           {step !== 'home' && (
             <div style={{ marginBottom: '1rem' }}>
@@ -906,385 +853,406 @@ export default function Home() {
             </div>
           )}
 
-          {/* 1. ACCUEIL DYNAMIQUE */}
+          {/* 1. ÉCRAN D'ACCUEIL */}
           {step === 'home' && (
             <div>
-              <section style={{ textAlign: 'center', padding: '1rem 0 2rem 0', position: 'relative' }}>
-                
-                {/* LOGO HERO ANIMÉ */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
-                  <div className="hero-logo-box" style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '20px', border: '1px solid #3A506B', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <AppLogo size={52} />
-                  </div>
+              <div style={{ textAlign: 'center', margin: '1.5rem 0 2.5rem 0' }}>
+                <div className="hero-logo-box" style={{ display: 'inline-block', padding: '1rem', borderRadius: '20px', backgroundColor: '#1C2541', marginBottom: '1rem', border: '1px solid #3A506B' }}>
+                  <AppLogo size={60} />
                 </div>
-
-                <h1 style={{ fontSize: '2rem', fontWeight: '800', lineHeight: 1.25, marginBottom: '0.8rem', color: '#FFFFFF !important' }}>
-                  Vos documents officiels prêts en 2 minutes.
-                </h1>
-                
-                <p style={{ color: '#D1D5DB !important', fontSize: '0.95rem', marginBottom: '1.8rem', lineHeight: '1.5' }}>
-                  Remplissez votre formulaire, visualisez le résultat et téléchargez votre fichier au format PDF certifié.
-                </p>
-
-                {/* BANDEROLE D'AVANTAGES DYNAMIQUES */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem', marginBottom: '2rem' }}>
-                  <div style={{ backgroundColor: '#1C2541', padding: '0.75rem 0.5rem', borderRadius: '10px', border: '1px solid #3A506B', textAlign: 'center' }}>
-                    <span style={{ fontSize: '1.2rem', display: 'block' }}>⚡</span>
-                    <span style={{ fontSize: '0.7rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>Instantané</span>
-                  </div>
-                  <div style={{ backgroundColor: '#1C2541', padding: '0.75rem 0.5rem', borderRadius: '10px', border: '1px solid #3A506B', textAlign: 'center' }}>
-                    <span style={{ fontSize: '1.2rem', display: 'block' }}>🔒</span>
-                    <span style={{ fontSize: '0.7rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>Conforme</span>
-                  </div>
-                  <div style={{ backgroundColor: '#1C2541', padding: '0.75rem 0.5rem', borderRadius: '10px', border: '1px solid #3A506B', textAlign: 'center' }}>
-                    <span style={{ fontSize: '1.2rem', display: 'block' }}>📄</span>
-                    <span style={{ fontSize: '0.7rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>Format PDF</span>
-                  </div>
-                </div>
-              </section>
-
-              <section>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
-                  <h2 style={{ fontSize: '1.2rem', margin: 0, color: '#FFFFFF !important', fontWeight: 'bold' }}>📋 Choisissez votre document</h2>
-                  <span style={{ fontSize: '0.75rem', color: '#4CC9F0 !important', fontWeight: '600' }}>Prix croissants</span>
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {sortedDocuments.map((doc) => (
-                    <div 
-                      key={doc.id}
-                      onClick={() => handleSelectDoc(doc)}
-                      className="card-hover"
-                      style={{ backgroundColor: '#1C2541', borderRadius: '14px', padding: '1.2rem', border: '1px solid #3A506B', cursor: 'pointer' }}>
-                      
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <span style={{ fontSize: '0.75rem', color: '#4CC9F0 !important', fontWeight: 'bold', letterSpacing: '0.5px' }}>{doc.category}</span>
-                        {doc.badge && (
-                          <span style={{ backgroundColor: '#4361EE', color: '#FFFFFF !important', fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 'bold' }}>
-                            {doc.badge}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <h3 style={{ fontSize: '1.15rem', margin: '0.4rem 0', color: '#FFFFFF !important', fontWeight: 'bold' }}>{doc.title}</h3>
-                      <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', margin: '0 0 1rem 0', lineHeight: '1.4' }}>{doc.desc}</p>
-                      
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 'bold', color: '#FFFFFF !important', fontSize: '1rem' }}>{doc.price}</span>
-                        <span style={{ color: '#4CC9F0 !important', fontWeight: 'bold', fontSize: '0.9rem' }}>Créer le document →</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
-          )}
-
-          {/* 2. FORMULAIRE DYNAMIQUE */}
-          {step === 'form' && selectedDoc && (
-            <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <span style={{ fontSize: '0.85rem', color: '#4CC9F0 !important', fontWeight: 'bold', display: 'block', marginBottom: '0.2rem' }}>
-                  Création de votre {selectedDoc.title}
-                </span>
-                <h2 style={{ fontSize: '1.2rem', margin: '0 0 0.8rem 0', color: '#FFFFFF !important', fontWeight: 'bold' }}>Étape {formStep} sur 3</h2>
-                <div style={{ backgroundColor: '#0B132B', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ backgroundColor: '#4361EE', width: `${(formStep / 3) * 100}%`, height: '100%', transition: 'width 0.3s' }}></div>
-                </div>
+                <HeroText />
               </div>
+
+              <EditorialList />
+
+              <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', letterSpacing: '0.5px' }}>
+                📄 Choisissez votre document :
+              </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {selectedDoc.fields
-                  .filter(f => f.step === formStep)
-                  .map(field => (
-                    <div key={field.id}>
-                      <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>
-                        {field.label} {field.required && '*'}
-                      </label>
-                      {field.type === 'textarea' ? (
-                        <textarea
-                          value={formData[field.id] || ''}
-                          onChange={(e) => handleInputChange(field.id, e.target.value)}
-                          placeholder={field.placeholder}
-                          style={{ ...inputStyle, minHeight: '90px' }}
-                        />
-                      ) : field.type === 'select' ? (
-                        <select
-                          value={formData[field.id] || ''}
-                          onChange={(e) => handleInputChange(field.id, e.target.value)}
-                          style={inputStyle}>
-                          <option value="">Sélectionnez...</option>
-                          {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                        </select>
-                      ) : (
-                        <input
-                          type={field.type}
-                          value={formData[field.id] || ''}
-                          onChange={(e) => handleInputChange(field.id, e.target.value)}
-                          placeholder={field.placeholder}
-                          style={inputStyle}
-                        />
-                      )}
+                {sortedDocuments.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="card-hover"
+                    onClick={() => handleSelectDoc(doc)}
+                    style={{
+                      backgroundColor: '#1C2541',
+                      border: '1px solid #3A506B',
+                      borderRadius: '12px',
+                      padding: '1.2rem',
+                      cursor: 'pointer',
+                      position: 'relative'
+                    }}>
+                    {doc.badge && (
+                      <span style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        backgroundColor: '#F72585',
+                        color: '#FFFFFF !important',
+                        fontSize: '0.65rem',
+                        fontWeight: 'bold',
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        textTransform: 'uppercase'
+                      }}>
+                        {doc.badge}
+                      </span>
+                    )}
+                    <div style={{ fontSize: '0.75rem', color: '#4CC9F0 !important', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '0.3rem' }}>
+                      {doc.category}
                     </div>
-                  ))}
-              </div>
-
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                <button onClick={handleBack} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFFFFF !important', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  Retour
-                </button>
-                
-                {formStep < 3 ? (
-                  <button onClick={() => setFormStep(formStep + 1)} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    Continuer →
-                  </button>
-                ) : (
-                  <button onClick={() => setStep('review')} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                    Vérifier mes infos →
-                  </button>
-                )}
+                    <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.4rem 0', paddingRight: doc.badge ? '80px' : '0' }}>
+                      {doc.title}
+                    </h3>
+                    <p style={{ fontSize: '0.85rem', color: '#9CA3AF !important', margin: '0 0 1rem 0', lineHeight: '1.4' }}>
+                      {doc.desc}
+                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.8rem' }}>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#4CC9F0 !important' }}>
+                        {doc.price}
+                      </span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FFFFFF !important' }}>
+                        Générer ➔
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* 3. ÉCRAN DE VÉRIFICATION */}
+          {/* 2. FORMULAIRE PAR ÉTAPES */}
+          {step === 'form' && selectedDoc && (
+            <div style={{ backgroundColor: '#1C2541', border: '1px solid #3A506B', borderRadius: '12px', padding: '1.5rem' }}>
+              <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid #3A506B', paddingBottom: '1rem' }}>
+                <span style={{ fontSize: '0.75rem', color: '#4CC9F0 !important', fontWeight: 'bold' }}>ÉTAPE {formStep} SUR 3</span>
+                <h2 style={{ fontSize: '1.3rem', margin: '0.2rem 0' }}>{selectedDoc.title}</h2>
+                <p style={{ fontSize: '0.85rem', color: '#9CA3AF !important', margin: 0 }}>Remplissez les informations ci-dessous pour votre document.</p>
+              </div>
+
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (formStep < 3) {
+                  setFormStep(formStep + 1);
+                } else {
+                  setStep('review');
+                }
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                  {selectedDoc.fields
+                    .filter(field => field.step === formStep)
+                    .map((field) => (
+                      <div key={field.id}>
+                        <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.4rem', fontWeight: '500' }}>
+                          {field.label} {field.required && <span style={{ color: '#F72585' }}>*</span>}
+                        </label>
+
+                        {field.type === 'textarea' ? (
+                          <textarea
+                            required={field.required}
+                            placeholder={field.placeholder}
+                            value={formData[field.id] || ''}
+                            onChange={(e) => handleInputChange(field.id, e.target.value)}
+                            rows={4}
+                            style={{ ...inputStyle, resize: 'vertical' }}
+                          />
+                        ) : field.type === 'select' ? (
+                          <select
+                            required={field.required}
+                            value={formData[field.id] || ''}
+                            onChange={(e) => handleInputChange(field.id, e.target.value)}
+                            style={inputStyle}>
+                            <option value="">-- Sélectionner --</option>
+                            {field.options?.map((opt, i) => (
+                              <option key={i} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type={field.type}
+                            required={field.required}
+                            placeholder={field.placeholder}
+                            value={formData[field.id] || ''}
+                            onChange={(e) => handleInputChange(field.id, e.target.value)}
+                            style={inputStyle}
+                          />
+                        )}
+                      </div>
+                    ))}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2rem', gap: '1rem' }}>
+                  {formStep > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setFormStep(formStep - 1)}
+                      style={{ flex: 1, padding: '0.8rem', borderRadius: '8px', border: '1px solid #3A506B', backgroundColor: 'transparent', color: '#FFFFFF !important', fontWeight: 'bold', cursor: 'pointer' }}>
+                      Précédent
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    style={{ flex: 1, padding: '0.8rem', borderRadius: '8px', border: 'none', backgroundColor: '#4361EE', color: '#FFFFFF !important', fontWeight: 'bold', cursor: 'pointer' }}>
+                    {formStep === 3 ? 'Vérifier les données ➔' : 'Suivant ➔'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* 3. RÉCAPITULATIF / VÉRIFICATION */}
           {step === 'review' && selectedDoc && (
-            <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
-              <h2 style={{ fontSize: '1.2rem', color: '#4CC9F0 !important', marginBottom: '1rem', fontWeight: 'bold' }}>🔍 Vérifiez vos informations</h2>
-              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '0.8rem', marginBottom: '1.5rem' }}>
-                {selectedDoc.fields.map(field => (
-                  formData[field.id] ? (
-                    <div key={field.id} style={{ borderBottom: '1px solid #1C2541', paddingBottom: '0.4rem' }}>
-                      <span style={{ fontSize: '0.75rem', color: '#D1D5DB !important', display: 'block' }}>{field.label}</span>
-                      <span style={{ fontSize: '0.9rem', color: '#FFFFFF !important', fontWeight: 'bold' }}>{formData[field.id]}</span>
-                    </div>
-                  ) : null
+            <div style={{ backgroundColor: '#1C2541', border: '1px solid #3A506B', borderRadius: '12px', padding: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Récapitulatif de votre saisie</h2>
+              <p style={{ fontSize: '0.85rem', color: '#9CA3AF !important', marginBottom: '1.5rem' }}>
+                Vérifiez attentivement les informations fournies avant de générer l'aperçu.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', backgroundColor: '#0B132B', padding: '1rem', borderRadius: '8px', border: '1px solid #3A506B', marginBottom: '1.5rem' }}>
+                {selectedDoc.fields.map((field) => (
+                  <div key={field.id} style={{ display: 'flex', flexDirection: 'column', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.4rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#4CC9F0 !important' }}>{field.label}</span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: '500', wordBreak: 'break-word' }}>
+                      {formData[field.id] || <i style={{ color: '#6B7280' }}>Non renseigné</i>}
+                    </span>
+                  </div>
                 ))}
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <button onClick={() => setStep('form')} style={{ flex: 1, backgroundColor: '#0B132B', color: '#FFFFFF !important', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  ✏️ Modifier
-                </button>
-                <button onClick={handleProcessDocument} disabled={isGeneratingContent} style={{ flex: 2, backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  {isGeneratingContent ? 'Génération...' : '🚀 Générer mon document →'}
-                </button>
-              </div>
+              <button
+                onClick={handleProcessDocument}
+                disabled={isGeneratingContent}
+                style={{ width: '100%', padding: '0.9rem', borderRadius: '8px', border: 'none', backgroundColor: '#4361EE', color: '#FFFFFF !important', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem' }}>
+                {isGeneratingContent ? 'Génération en cours...' : 'Générer l’aperçu du document ➔'}
+              </button>
             </div>
           )}
 
-          {/* 4. APERÇU SPÉCIMEN */}
+          {/* 4. APERÇU DU DOCUMENT SANS FILIGRANE */}
           {step === 'preview' && selectedDoc && (
             <div>
-              <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', textAlign: 'center', color: '#FFFFFF !important', fontWeight: 'bold' }}>Aperçu de votre document</h2>
-              
-              <div style={{ backgroundColor: '#FFFFFF', padding: '1.5rem', borderRadius: '8px', position: 'relative', overflow: 'hidden', minHeight: '350px', boxShadow: '0 10px 25px rgba(0,0,0,0.5)', fontFamily: "'Times New Roman', Times, serif" }}>
-                <style>{`
-                  .preview-document * {
-                    color: #000000 !important;
-                  }
-                `}</style>
-
-                <div style={{ position: 'absolute', top: '35%', left: '5%', right: '5%', transform: 'rotate(-25deg)', fontSize: '2.2rem', fontWeight: '900', color: 'rgba(230, 57, 70, 0.18) !important', pointerEvents: 'none', userSelect: 'none', textAlign: 'center', border: '4px dashed rgba(230, 57, 70, 0.25)', padding: '10px' }}>
-                  SPÉCIMEN - DOCEXPRESS
-                </div>
-
-                <div className="preview-document" style={{ fontSize: '0.85rem', lineHeight: '1.6' }} dangerouslySetInnerHTML={{ __html: generatedBody }} />
+              <div style={{ backgroundColor: '#1C2541', border: '1px solid #3A506B', borderRadius: '12px', padding: '1rem', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0' }}>📄 Aperçu de votre document</h2>
+                <p style={{ fontSize: '0.8rem', color: '#9CA3AF !important', margin: 0 }}>
+                  Voici le rendu final de votre document. Procédez au paiement de <strong>{selectedDoc.price}</strong> pour débloquer le téléchargement PDF officiel.
+                </p>
               </div>
 
-              <div style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
-                <div>
-                  <span style={{ fontSize: '0.9rem', display: 'block', color: '#FFFFFF !important', fontWeight: 'bold' }}>{selectedDoc.title}</span>
-                  <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#4CC9F0 !important' }}>{selectedDoc.price}</span>
-                </div>
-                <button onClick={() => setStep('payment')} style={{ backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '0.8rem 1.2rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  Payer pour télécharger →
-                </button>
+              {/* ZONE DU DOCUMENT POUR HTML2CANVAS / PDF */}
+              <div 
+                ref={documentRef} 
+                style={{ 
+                  backgroundColor: '#FFFFFF', 
+                  color: '#000000 !important', 
+                  padding: '2.5rem 2rem', 
+                  borderRadius: '4px', 
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.5)', 
+                  marginBottom: '1.5rem',
+                  minHeight: '400px'
+                }}>
+                <div 
+                  dangerouslySetInnerHTML={{ __html: generatedBody }} 
+                  style={{ color: '#000000 !important' }} 
+                />
               </div>
+
+              <button
+                onClick={() => setStep('payment')}
+                style={{ width: '100%', padding: '1rem', borderRadius: '8px', border: 'none', backgroundColor: '#F72585', color: '#FFFFFF !important', fontWeight: 'bold', fontSize: '1.05rem', cursor: 'pointer' }}>
+                Payer {selectedDoc.price} & Télécharger PDF ➔
+              </button>
             </div>
           )}
 
-          {/* 5. PAIEMENT MANUEL ORANGE MONEY */}
+          {/* 5. ÉCRAN DE PAIEMENT MOBILE MONEY */}
           {step === 'payment' && selectedDoc && (
-            <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
-              <h2 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: '#FFFFFF !important', fontWeight: 'bold' }}>Paiement Orange Money</h2>
-              <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', marginBottom: '1rem' }}>
-                Effectuez un transfert du montant exact vers le numéro ci-dessous, puis saisissez les informations de votre SMS de confirmation.
+            <div style={{ backgroundColor: '#1C2541', border: '1px solid #3A506B', borderRadius: '12px', padding: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.3rem', marginBottom: '0.5rem' }}>💳 Paiement Mobile Money</h2>
+              <p style={{ fontSize: '0.85rem', color: '#9CA3AF !important', marginBottom: '1.5rem' }}>
+                Montant à régler : <strong style={{ color: '#4CC9F0 !important', fontSize: '1.1rem' }}>{selectedDoc.price}</strong>
               </p>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid #3A506B', marginBottom: '1.5rem', color: '#FFFFFF !important' }}>
-                <span style={{ fontWeight: 'bold' }}>{selectedDoc.title}</span>
-                <span style={{ fontWeight: 'bold', color: '#4CC9F0 !important' }}>{selectedDoc.price}</span>
-              </div>
 
-              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', borderLeft: '4px solid #FF7900', marginBottom: '1.5rem' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#FF7900 !important' }}>🟠 Numéro Orange Money</span>
-                <p style={{ margin: '0.2rem 0 0 0', fontWeight: 'bold', fontSize: '1.2rem', letterSpacing: '1px', color: '#FFFFFF !important' }}>+237 655 06 93 96</p>
+              <div style={{ backgroundColor: '#0B132B', border: '1px solid #3A506B', borderRadius: '8px', padding: '1rem', marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '0.95rem', color: '#4CC9F0 !important', marginTop: 0 }}>Consignes de paiement :</h3>
+                <ol style={{ fontSize: '0.85rem', color: '#D1D5DB !important', paddingLeft: '1.2rem', margin: 0, lineHeight: '1.6' }}>
+                  <li>Effectuez un transfert Orange Money ou MTN Mobile Money au : <strong>6XX XX XX XX</strong>.</li>
+                  <li>Inscrivez ci-dessous le numéro utilisé et le TxID / Référence reçu par SMS.</li>
+                  <li>Cliquez sur "Valider le paiement".</li>
+                </ol>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>Votre Numéro Expéditeur (Orange Money)</label>
-                  <input 
-                    type="text" 
-                    value={senderPhoneInput} 
-                    onChange={(e) => setSenderPhoneInput(e.target.value)} 
-                    placeholder="Ex: 655XXXXXX"
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.3rem' }}>Votre numéro de téléphone (Expéditeur)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: 699000000"
+                    value={senderPhoneInput}
+                    onChange={(e) => setSenderPhoneInput(e.target.value)}
                     style={inputStyle}
                   />
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>Référence de Transaction SMS</label>
-                  <input 
-                    type="text" 
-                    value={transactionRefInput} 
-                    onChange={(e) => setTransactionRefInput(e.target.value)} 
-                    placeholder="Ex: PP260914.XXXX.XXXXX"
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.3rem' }}>Référence de la transaction (TxID SMS)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: MP260926.1124.A12345"
+                    value={transactionRefInput}
+                    onChange={(e) => setTransactionRefInput(e.target.value)}
                     style={inputStyle}
                   />
                 </div>
               </div>
 
-              <button 
-                onClick={handleInitiatePayment} 
+              <button
+                onClick={handleInitiatePayment}
                 disabled={isSubmittingPayment}
-                style={{ width: '100%', backgroundColor: '#FF7900', color: '#FFFFFF !important', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
-                {isSubmittingPayment ? 'Enregistrement en cours...' : '✅ VALIDER MA COMMANDE'}
+                style={{ width: '100%', padding: '0.9rem', borderRadius: '8px', border: 'none', backgroundColor: '#4CC9F0', color: '#0B132B !important', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer' }}>
+                {isSubmittingPayment ? 'Enregistrement...' : 'Valider le paiement ➔'}
               </button>
             </div>
           )}
 
-          {/* 6. ÉCRAN D'ATTENTE CLIENT */}
+          {/* 6. ÉCRAN D'ATTENTE DE VALIDATION */}
           {step === 'pending' && currentOrder && (
-            <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
-              <div style={{ width: '50px', height: '50px', border: '4px solid #1C2541', borderTop: '4px solid #4CC9F0', borderRadius: '50%', margin: '0 auto 1.5rem auto' }} />
-              
-              <h2 style={{ fontSize: '1.3rem', color: '#4CC9F0 !important', marginBottom: '0.5rem', fontWeight: 'bold' }}>Vérification du paiement en cours...</h2>
-              <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', marginBottom: '1.5rem' }}>
-                Votre demande a bien été transmise dans Supabase. Dès confirmation de votre dépôt par l'administration, votre document PDF sera automatiquement disponible ci-dessous.
+            <div style={{ backgroundColor: '#1C2541', border: '1px solid #3A506B', borderRadius: '12px', padding: '2rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏳</div>
+              <h2 style={{ fontSize: '1.3rem', marginBottom: '0.5rem' }}>Paiement en cours de vérification</h2>
+              <p style={{ fontSize: '0.9rem', color: '#9CA3AF !important', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+                Nous vérifions la réception de votre paiement Mobile Money.<br/>
+                Dès confirmation, votre document PDF officiel sera immédiatement disponible.
               </p>
 
-              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '10px', textAlign: 'left', fontSize: '0.85rem' }}>
-                <p style={{ margin: '0 0 0.5rem 0', color: '#D1D5DB !important' }}>ID Commande Supabase : <strong style={{ color: '#FFFFFF !important' }}>{currentOrder.id}</strong></p>
-                <p style={{ margin: '0 0 0.5rem 0', color: '#D1D5DB !important' }}>Document : <strong style={{ color: '#FFFFFF !important' }}>{currentOrder.docTitle}</strong></p>
-                <p style={{ margin: '0 0 0.5rem 0', color: '#D1D5DB !important' }}>Expéditeur : <strong style={{ color: '#FFFFFF !important' }}>{currentOrder.senderPhone}</strong></p>
-                <p style={{ margin: 0, color: '#D1D5DB !important' }}>Montant : <strong style={{ color: '#4CC9F0 !important' }}>{currentOrder.price}</strong></p>
+              <div style={{ backgroundColor: '#0B132B', padding: '1rem', borderRadius: '8px', border: '1px solid #3A506B', textAlign: 'left', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+                <div><strong>Commande n° :</strong> {currentOrder.id}</div>
+                <div><strong>Document :</strong> {currentOrder.docTitle}</div>
+                <div><strong>Montant :</strong> {currentOrder.price}</div>
+                <div><strong>Référence :</strong> {currentOrder.transactionRef}</div>
+              </div>
+
+              <div style={{ fontSize: '0.8rem', color: '#4CC9F0 !important' }}>
+                🔄 Vérification automatique toutes les 3 secondes...
               </div>
             </div>
           )}
 
-          {/* 7. TÉLÉCHARGEMENT FINAL */}
-          {step === 'success' && (selectedDoc || currentOrder) && (
-            <div style={{ textAlign: 'center', padding: '2rem 1rem', backgroundColor: '#1C2541', borderRadius: '16px', border: '1px solid #3A506B' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
-              <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0 !important', marginBottom: '0.5rem', fontWeight: 'bold' }}>Paiement Confirmé !</h2>
-              <p style={{ fontSize: '0.85rem', color: '#D1D5DB !important', marginBottom: '1.5rem' }}>
-                Votre document a été validé. Vous pouvez le télécharger au format PDF officiel.
+          {/* 7. ÉCRAN DE SUCCÈS & TÉLÉCHARGEMENT */}
+          {step === 'success' && (
+            <div style={{ backgroundColor: '#1C2541', border: '1px solid #3A506B', borderRadius: '12px', padding: '2rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎉</div>
+              <h2 style={{ fontSize: '1.4rem', color: '#4CC9F0 !important', marginBottom: '0.5rem' }}>Paiement Approuvé !</h2>
+              <p style={{ fontSize: '0.9rem', color: '#D1D5DB !important', marginBottom: '1.5rem' }}>
+                Votre document est prêt et validé. Cliquez sur le bouton ci-dessous pour télécharger votre fichier PDF.
               </p>
 
-              {/* ÉLÉMENT MASQUÉ (COMPATIBLE SAFARI & WEBKit MOBILE) */}
-              <div style={{ position: 'fixed', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -9999 }}>
-                <div ref={documentRef} style={{ width: '794px', minHeight: '1123px', backgroundColor: '#FFFFFF', color: '#000000', padding: '4rem', fontFamily: "'Times New Roman', Times, serif", boxSizing: 'border-box' }}>
-                  <div className="preview-document" style={{ fontSize: '1.1rem', lineHeight: '1.8' }} dangerouslySetInnerHTML={{ __html: currentOrder?.generatedBody || generatedBody }} />
-                </div>
-              </div>
-
-              <button 
+              <button
                 onClick={generatePDF}
                 disabled={isGeneratingPDF}
-                style={{ width: '100%', backgroundColor: '#4361EE', color: '#FFFFFF !important', border: 'none', padding: '1rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '1rem', cursor: 'pointer', marginBottom: '1rem' }}>
-                {isGeneratingPDF ? 'Téléchargement...' : '⬇️ TÉLÉCHARGER MON PDF'}
+                style={{ width: '100%', padding: '1rem', borderRadius: '8px', border: 'none', backgroundColor: '#4CC9F0', color: '#0B132B !important', fontWeight: 'bold', fontSize: '1.05rem', cursor: 'pointer', marginBottom: '1rem' }}>
+                {isGeneratingPDF ? 'Génération du PDF...' : '📥 Télécharger mon PDF'}
               </button>
 
-              <button 
+              <button
                 onClick={() => setStep('home')}
-                style={{ width: '100%', backgroundColor: '#0B132B', color: '#D1D5DB !important', border: '1px solid #3A506B', padding: '0.8rem', borderRadius: '10px', fontWeight: 'bold', fontSize: '0.9rem', cursor: 'pointer' }}>
-                🏠 Créer un autre document
+                style={{ background: 'none', border: 'none', color: '#9CA3AF !important', fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline' }}>
+                Générer un autre document
               </button>
             </div>
           )}
 
           {/* 8. CONNEXION ADMIN */}
           {step === 'admin_login' && (
-            <div style={{ backgroundColor: '#1C2541', padding: '1.5rem', borderRadius: '16px', border: '1px solid #3A506B' }}>
-              <h2 style={{ fontSize: '1.2rem', color: '#F72585 !important', marginBottom: '1rem', fontWeight: 'bold' }}>🔒 Espace Administration</h2>
-              <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: '#FFFFFF !important', fontWeight: '600' }}>Code PIN Accès</label>
-                  <input 
-                    type="password" 
-                    value={adminPinInput} 
-                    onChange={(e) => setAdminPinInput(e.target.value)} 
-                    placeholder="Entrez le code PIN (ex: 1234)"
+            <div style={{ backgroundColor: '#1C2541', border: '1px solid #3A506B', borderRadius: '12px', padding: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.3rem', marginBottom: '1rem', color: '#F72585 !important' }}>🔒 Espace Administration</h2>
+              <form onSubmit={handleAdminLogin}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem' }}>Code PIN d'accès</label>
+                  <input
+                    type="password"
+                    placeholder="Entrez le PIN"
+                    value={adminPinInput}
+                    onChange={(e) => setAdminPinInput(e.target.value)}
                     style={inputStyle}
                   />
+                  {adminPinError && (
+                    <p style={{ color: '#F72585 !important', fontSize: '0.8rem', marginTop: '0.3rem' }}>Code PIN incorrect.</p>
+                  )}
                 </div>
-                {adminPinError && <p style={{ color: '#E63946 !important', fontSize: '0.8rem', margin: 0 }}>Code PIN incorrect.</p>}
-                <button type="submit" style={{ backgroundColor: '#F72585', color: '#FFFFFF !important', border: 'none', padding: '0.8rem', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                  Se connecter
+                <button
+                  type="submit"
+                  style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: 'none', backgroundColor: '#F72585', color: '#FFFFFF !important', fontWeight: 'bold', cursor: 'pointer' }}>
+                  Se connecter ➔
                 </button>
               </form>
             </div>
           )}
 
-          {/* 9. DASHBOARD ADMIN (RÉPARÉ) */}
+          {/* 9. DASHBOARD ADMIN */}
           {step === 'admin_dashboard' && (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h2 style={{ fontSize: '1.2rem', color: '#F72585 !important', margin: 0, fontWeight: 'bold' }}>📊 Suivi des Paiements Supabase</h2>
-                <button onClick={() => setStep('home')} style={{ backgroundColor: '#0B132B', color: '#FFFFFF !important', border: '1px solid #3A506B', padding: '0.4rem 0.8rem', borderRadius: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
-                  Quitter
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.2rem', color: '#F72585 !important', margin: 0 }}>📊 Tableau de bord Admin</h2>
+                <button
+                  onClick={fetchSupabaseOrders}
+                  style={{ padding: '0.4rem 0.8rem', borderRadius: '6px', border: '1px solid #3A506B', backgroundColor: '#1C2541', color: '#FFFFFF !important', fontSize: '0.8rem', cursor: 'pointer' }}>
+                  🔄 Actualiser
                 </button>
               </div>
 
-              {orders.length === 0 ? (
-                <p style={{ color: '#D1D5DB !important', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>Aucune commande enregistrée dans Supabase pour le moment.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {orders.map((ord) => (
-                    <div key={ord.id} style={{ backgroundColor: '#1C2541', padding: '1rem', borderRadius: '10px', border: '1px solid #3A506B', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 'bold', color: '#4CC9F0 !important', fontSize: '0.85rem' }}>{ord.id}</span>
-                        <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: ord.status === 'APPROVED' ? 'rgba(37, 211, 102, 0.2)' : 'rgba(247, 37, 133, 0.2)', color: ord.status === 'APPROVED' ? '#25D366 !important' : '#F72585 !important', fontWeight: 'bold' }}>
-                          {ord.status === 'APPROVED' ? 'VALIDE' : 'EN ATTENTE'}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {orders.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: '#9CA3AF !important' }}>Aucune commande enregistrée.</p>
+                ) : (
+                  orders.map((order) => (
+                    <div
+                      key={order.id}
+                      style={{ backgroundColor: '#1C2541', border: '1px solid #3A506B', borderRadius: '8px', padding: '1rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#4CC9F0 !important' }}>{order.docTitle}</span>
+                        <span style={{
+                          fontSize: '0.7rem',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontWeight: 'bold',
+                          backgroundColor: order.status === 'APPROVED' ? '#10B981' : '#F59E0B',
+                          color: '#FFFFFF !important'
+                        }}>
+                          {order.status}
                         </span>
                       </div>
 
-                      <div style={{ fontSize: '0.85rem', color: '#FFFFFF !important' }}>
-                        <p style={{ margin: '0 0 0.2rem 0' }}>Document : <strong>{ord.docTitle}</strong></p>
-                        <p style={{ margin: '0 0 0.2rem 0' }}>Montant : <strong>{ord.price}</strong></p>
-                        <p style={{ margin: '0 0 0.2rem 0' }}>Expéditeur OM : <strong>{ord.senderPhone}</strong></p>
-                        <p style={{ margin: 0 }}>Réf SMS : <strong>{ord.transactionRef || 'N/A'}</strong> ({ord.createdAt})</p>
+                      <div style={{ fontSize: '0.8rem', color: '#D1D5DB !important', lineHeight: '1.5' }}>
+                        <div><strong>Client :</strong> {order.clientPhone}</div>
+                        <div><strong>Montant :</strong> {order.price}</div>
+                        <div><strong>Réf SMS :</strong> {order.transactionRef || 'N/A'}</div>
+                        <div><strong>Heure :</strong> {order.createdAt}</div>
                       </div>
 
-                      {ord.status === 'PENDING' && (
-                        <button 
-                          onClick={() => handleApproveOrder(ord.id)}
-                          style={{ marginTop: '0.5rem', backgroundColor: '#25D366', color: '#FFFFFF !important', border: 'none', padding: '0.6rem', borderRadius: '6px', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>
-                          ✅ Valider le paiement
+                      {order.status === 'PENDING' && (
+                        <button
+                          onClick={() => handleApproveOrder(order.id)}
+                          style={{ marginTop: '0.8rem', width: '100%', padding: '0.5rem', borderRadius: '6px', border: 'none', backgroundColor: '#10B981', color: '#FFFFFF !important', fontWeight: 'bold', fontSize: '0.85rem', cursor: 'pointer' }}>
+                          ✓ Approuver la commande
                         </button>
                       )}
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </div>
           )}
-
         </main>
       </div>
 
-      {/* FOOTER DISCRET ET ÉLÉGANT */}
-      <footer style={{ borderTop: '1px solid #1C2541', padding: '1.2rem', textAlign: 'center', backgroundColor: '#0B132B', marginTop: '2rem' }}>
-        <p style={{ fontSize: '0.75rem', color: '#6B7280 !important', margin: 0 }}>
-          © 2026 DocExpress. Tous droits réservés.
-        </p>
-        <p style={{ fontSize: '0.65rem', color: '#4B5563 !important', margin: '0.3rem 0 0 0' }}>
+      {/* PIED DE PAGE */}
+      <footer style={{ padding: '1.5rem', textAlign: 'center', borderTop: '1px solid #1C2541', marginTop: '2rem', fontSize: '0.8rem', color: '#9CA3AF !important' }}>
+        <p style={{ margin: 0 }}>© 2026 DocExpress. Tous droits réservés.</p>    <p style={{ fontSize: '0.65rem', color: '#4B5563 !important', margin: '0.3rem 0 0 0' }}>
           Développé avec soin par Désiré Atangana Atangana
         </p>
+        <p style={{ margin: '0.3rem 0 0 0', fontSize: '0.75rem' }}>Service sécurisé de génération administrative.</p>
       </footer>
-
     </div>
   );
 }
