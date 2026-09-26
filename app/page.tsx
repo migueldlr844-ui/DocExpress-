@@ -890,6 +890,10 @@ export default function Home() {
         )}
 
         <main style={{ maxWidth: '600px', margin: '0 auto', padding: '1.5rem' }}>
+              <AnimatePresence>
+        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+      </AnimatePresence>
+
 
           {/* BARRE DE RETOUR */}
           {step !== 'home' && (
