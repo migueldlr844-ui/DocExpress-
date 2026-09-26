@@ -1,62 +1,102 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
+const WORDS = ['CONTRAT', 'FACTURE', 'CV', 'QUITTANCE', 'REÇU'];
+
 export default function SplashScreen({ onFinish }: { onFinish: () => void }) {
+  const [index, setIndex] = useState(0);
+  const [phase, setPhase] = useState<'logo' | 'words' | 'tagline'>('logo');
+
+  useEffect(() => {
+    // Gestion du timing des phases
+    const timer1 = setTimeout(() => setPhase('words'), 800);
+    const timer2 = setTimeout(() => setPhase('tagline'), 2000);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (phase === 'words') {
+      const interval = setInterval(() => {
+        setIndex((prev) => (prev + 1) % WORDS.length);
+      }, 200);
+      return () => clearInterval(interval);
+    }
+  }, [phase]);
+
+  const handleStart = () => {
+    // Sauvegarde en cache pour ne plus l'afficher lors des prochaines visites
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hasSeenSplash', 'true');
+    }
+    onFinish();
+  };
+
   return (
-    <motion.div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-white"
-      initial={{ opacity: 1 }}
-      animate={{ opacity: 1 }}
+    <motion.div 
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.6, delay: 1.8 }}
-      onAnimationComplete={onFinish}
+      transition={{ duration: 0.5 }}
+      className="fixed inset-0 z-50 bg-[#050B14] text-slate-100 flex flex-col items-center justify-center p-6 select-none font-sans"
     >
-      {/* Logo animé */}
-      <motion.div
-        initial={{ scale: 0.5, opacity: 0 }}
-        animate={{ scale: [0.5, 1.1, 1], opacity: 1 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="w-24 h-24 mb-6 bg-gradient-to-tr from-amber-500 via-orange-500 to-yellow-400 rounded-3xl flex items-center justify-center shadow-2xl shadow-amber-500/30 border border-amber-300/30"
-      >
-        <motion.span 
-          animate={{ scale: [1, 1.2, 1] }} 
-          transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
-          className="text-4xl"
+      <div className="w-full max-w-sm flex flex-col items-center text-center">
+        {/* Titre DOCEXPRESS */}
+        <motion.h1 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-3xl tracking-[0.25em] font-extrabold text-white font-mono"
         >
-          📄
-        </motion.span>
-      </motion.div>
+          DOCEXPRESS
+        </motion.h1>
 
-      {/* Titre principal */}
-      <motion.h1
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-        className="text-3xl font-black tracking-widest text-amber-400 uppercase"
-      >
-        Doc<span className="text-white">Express</span>
-      </motion.h1>
-
-      {/* Sous-titre */}
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.8 }}
-        transition={{ duration: 0.5, delay: 0.8 }}
-        className="text-xs tracking-wider mt-2 text-slate-400 font-medium uppercase"
-      >
-        Vos documents officiels en 2 minutes
-      </motion.p>
-
-      {/* Barre de chargement */}
-      <motion.div className="w-32 h-1 bg-slate-800 rounded-full mt-8 overflow-hidden">
-        <motion.div
-          initial={{ x: "-100%" }}
-          animate={{ x: "0%" }}
-          transition={{ duration: 1.4, delay: 0.4, ease: "easeInOut" }}
-          className="h-full bg-gradient-to-r from-amber-500 to-yellow-300"
+        {/* Ligne imprimante */}
+        <motion.div 
+          initial={{ width: 0 }}
+          animate={{ width: '100%' }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="h-[2px] bg-blue-500 my-5"
         />
-      </motion.div>
+
+        {/* Mots défilants */}
+        {phase === 'words' && (
+          <motion.div 
+            key={WORDS[index]}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-xs tracking-[0.3em] font-mono text-blue-400 font-semibold uppercase h-6"
+          >
+            {WORDS[index]}
+          </motion.div>
+        )}
+
+        {/* Tagline & Bouton d'entrée */}
+        {phase === 'tagline' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-col items-center space-y-6 mt-2"
+          >
+            <p className="text-xs font-light text-slate-300 leading-relaxed max-w-[260px] tracking-wide">
+              Vos documents. Votre activité.<br />
+              <span className="text-white font-medium">En quelques minutes.</span>
+            </p>
+            
+            <button 
+              onClick={handleStart}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs tracking-widest uppercase transition-all flex items-center space-x-2 border border-blue-400/30"
+            >
+              <span>COMMENCER</span>
+              <span>→</span>
+            </button>
+          </motion.div>
+        )}
+      </div>
     </motion.div>
   );
 }
