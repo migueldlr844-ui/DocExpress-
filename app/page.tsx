@@ -192,7 +192,7 @@ export default function DocExpressApp() {
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
-                    justify: 'space-between',
+                    justifyContent: 'space-between',
                   }}
                 >
                   <div>
