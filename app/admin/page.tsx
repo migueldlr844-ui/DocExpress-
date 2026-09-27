@@ -53,11 +53,9 @@ export default function AdminPage() {
   // Fonction pour récupérer l'URL publique de la capture d'écran
   const getProofImageUrl = (filePath?: string) => {
     if (!filePath) return null
-    // Si c'est déjà une URL complète
     if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
       return filePath
     }
-    // Sinon, génération depuis le bucket Supabase 'payment-proofs'
     const { data } = supabase.storage.from('payment-proofs').getPublicUrl(filePath)
     return data?.publicUrl || null
   }
@@ -159,7 +157,7 @@ export default function AdminPage() {
                       </a>
                     </div>
                   ) : (
-                    <p style={{ fontSize: '12px', color: '#ef4444', italic: 'true' }}>
+                    <p style={{ fontSize: '12px', color: '#ef4444', fontStyle: 'italic' }}>
                       ⚠️ Aucune capture d'écran jointe pour cette commande.
                     </p>
                   )}
