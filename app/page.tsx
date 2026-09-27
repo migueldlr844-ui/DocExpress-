@@ -343,7 +343,7 @@ export default function DocExpressApp() {
         )}
       </main>
 
-      <footer style={{ borderTop: '1px solid #1e293b', paddingT: '16px', marginTop: '32px', textAlign: 'center', fontSize: '0.75rem', color: '#64748b' }}>
+      <footer style={{ borderTop: '1px solid #1e293b', paddingTop: '16px', marginTop: '32px', textAlign: 'center', fontSize: '0.75rem', color: '#64748b' }}>
         © 2026 DOCEXPRESS — Tous droits réservés.
       </footer>
     </div>
