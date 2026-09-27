@@ -144,19 +144,19 @@ export default function DocExpressApp() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans p-4">
+    <div style={{ backgroundColor: '#020617', color: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif', padding: '16px' }}>
       {/* Header */}
-      <header className="border-b border-slate-800 pb-4 mb-6 flex justify-between items-center max-w-4xl mx-auto w-full">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setStep('select')}>
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center font-bold">
+      <header style={{ borderBottom: '1px solid #1e293b', paddingBottom: '16px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '800px', margin: '0 auto 24px auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => setStep('select')}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #2563eb, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             📄
           </div>
-          <span className="font-extrabold text-xl tracking-wider text-white">DOCEXPRESS</span>
+          <span style={{ fontWeight: 800, fontSize: '1.25rem', color: '#ffffff' }}>DOCEXPRESS</span>
         </div>
         {selectedDoc && (
           <button
             onClick={() => setStep('select')}
-            className="text-xs bg-slate-800 text-slate-400 border border-slate-700 px-3 py-1.5 rounded-lg"
+            style={{ fontSize: '0.75rem', backgroundColor: '#1e293b', color: '#94a3b8', border: '1px solid #334155', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer' }}
           >
             ← Retour au catalogue
           </button>
@@ -164,35 +164,34 @@ export default function DocExpressApp() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-3xl w-full mx-auto">
+      <main style={{ maxWidth: '800px', margin: '0 auto' }}>
         {step === 'select' && (
           <div>
-            <div className="text-center my-6">
-              <h1 className="text-2xl md:text-3xl font-extrabold text-white mb-2 leading-tight">
+            <div style={{ textAlign: 'center', margin: '24px 0 32px 0' }}>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', marginBottom: '8px' }}>
                 Vous avez les informations.<br />Nous avons le document.
               </h1>
-              <p className="text-slate-400 text-sm">
+              <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
                 Sélectionnez, remplissez et téléchargez en toute sécurité.
               </p>
             </div>
 
-            <div className="flex flex-col gap-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {DOCUMENTS.map((doc) => (
                 <div
                   key={doc.id}
                   onClick={() => handleSelectDoc(doc)}
-                  className="bg-slate-900 border border-slate-800 p-5 rounded-2xl cursor-pointer hover:border-blue-500 transition flex flex-col justify-between"
+                  style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', padding: '20px', borderRadius: '16px', cursor: 'pointer' }}
                 >
-                  <div>
-                    <span className="text-[10px] font-bold text-sky-400 bg-sky-500/10 px-2 py-1 rounded tracking-wider uppercase">
-                      {doc.category}
-                    </span>
-                    <h2 className="text-lg font-bold text-white mt-3 mb-1">{doc.title}</h2>
-                    <p className="text-slate-400 text-xs leading-relaxed">{doc.description}</p>
-                  </div>
-                  <div className="mt-5 pt-3 border-t border-slate-800 flex justify-between items-center">
-                    <span className="font-extrabold text-sky-400 text-base">{doc.price} FCFA</span>
-                    <span className="text-xs font-bold text-white bg-blue-600 px-3 py-2 rounded-xl">
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '4px 8px', borderRadius: '4px', textTransform: 'uppercase' }}>
+                    {doc.category}
+                  </span>
+                  <h2 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#ffffff', marginTop: '8px', marginBottom: '4px' }}>{doc.title}</h2>
+                  <p style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{doc.description}</p>
+                  
+                  <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 800, color: '#38bdf8' }}>{doc.price} FCFA</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#ffffff', backgroundColor: '#2563eb', padding: '6px 12px', borderRadius: '8px' }}>
                       Générer →
                     </span>
                   </div>
@@ -203,28 +202,28 @@ export default function DocExpressApp() {
         )}
 
         {step === 'form' && selectedDoc && (
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-md mx-auto">
-            <h2 className="text-xl font-bold text-white mb-1">{selectedDoc.title}</h2>
-            <p className="text-xs text-slate-400 mb-5">Remplissez les informations ci-dessous.</p>
+          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', padding: '24px', borderRadius: '16px', maxWidth: '480px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>{selectedDoc.title}</h2>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '20px' }}>Remplissez les informations ci-dessous.</p>
 
-            <form onSubmit={handleProceedToPreview} className="flex flex-col gap-4">
+            <form onSubmit={handleProceedToPreview} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {selectedDoc.fields.map((f) => (
                 <div key={f.name}>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">{f.label}</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '4px' }}>{f.label}</label>
                   <input
                     type={f.type || 'text'}
                     required
                     placeholder={f.placeholder}
                     value={formData[f.name] || ''}
                     onChange={(e) => handleInputChange(f.name, e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                    style={{ width: '100%', backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '8px', padding: '10px', fontSize: '0.875rem', color: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
               ))}
 
               <button
                 type="submit"
-                className="w-full mt-3 bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-500 transition text-sm"
+                style={{ width: '100%', marginTop: '12px', backgroundColor: '#2563eb', color: '#ffffff', fontWeight: 700, padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
               >
                 Voir l’aperçu du document →
               </button>
@@ -233,27 +232,27 @@ export default function DocExpressApp() {
         )}
 
         {step === 'preview' && selectedDoc && (
-          <div className="flex flex-col gap-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-base font-bold text-white">Aperçu officiel</h2>
-              <button onClick={() => setStep('form')} className="text-xs text-slate-400 underline">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>Aperçu officiel</h2>
+              <button onClick={() => setStep('form')} style={{ fontSize: '0.75rem', color: '#94a3b8', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}>
                 Modifier les saisies
               </button>
             </div>
 
             <div
               ref={documentRef}
-              className="bg-white text-slate-900 p-6 rounded-xl font-serif min-h-[380px] flex flex-col justify-between shadow-2xl"
+              style={{ backgroundColor: '#ffffff', color: '#020617', padding: '24px', borderRadius: '12px', fontFamily: 'serif', minHeight: '380px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
             >
               <div>
-                <div className="text-center border-b-2 border-slate-900 pb-3 mb-4">
-                  <h1 className="text-xl font-black uppercase tracking-wider">{selectedDoc.title}</h1>
+                <div style={{ textAlign: 'center', borderBottom: '2px solid #020617', paddingBottom: '12px', marginBottom: '16px' }}>
+                  <h1 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase' }}>{selectedDoc.title}</h1>
                 </div>
 
-                <div className="text-sm leading-relaxed space-y-3">
+                <div style={{ fontSize: '0.875rem', lineHeight: '1.6' }}>
                   {selectedDoc.id === 'quittance-loyer' && (
                     <>
-                      <p>
+                      <p style={{ marginBottom: '12px' }}>
                         Je soussigné(e), <strong>{formData.bailleur || '________________'}</strong>, propriétaire du logement situé à{' '}
                         <strong>{formData.adresse || '________________'}</strong>, reconnaît avoir reçu de M./Mme{' '}
                         <strong>{formData.locataire || '________________'}</strong> la somme de{' '}
@@ -268,7 +267,7 @@ export default function DocExpressApp() {
 
                   {selectedDoc.id === 'recu-loyer' && (
                     <>
-                      <p>
+                      <p style={{ marginBottom: '12px' }}>
                         Reçu de M./Mme <strong>{formData.locataire || '________________'}</strong> la somme de{' '}
                         <strong>{formData.montant || '0'} FCFA</strong>.
                       </p>
@@ -280,12 +279,12 @@ export default function DocExpressApp() {
 
                   {selectedDoc.id === 'attestation-honneur' && (
                     <>
-                      <p>
+                      <p style={{ marginBottom: '12px' }}>
                         Je soussigné(e), <strong>{formData.declarant || '________________'}</strong>, demeurant à{' '}
                         <strong>{formData.adresse || '________________'}</strong>, titulaire de la CNI n°{' '}
                         <strong>{formData.cni || '________________'}</strong>, atteste sur l’honneur que :
                       </p>
-                      <p className="italic bg-slate-100 p-3 border-l-2 border-slate-900 my-3">
+                      <p style={{ fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '12px', borderLeft: '3px solid #020617', margin: '12px 0' }}>
                         « {formData.declaration || '________________'} »
                       </p>
                     </>
@@ -293,20 +292,20 @@ export default function DocExpressApp() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-300 flex justify-between text-xs text-slate-600 font-sans">
+              <div style={{ paddingTop: '16px', borderTop: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#475569', fontFamily: 'sans-serif' }}>
                 <div>
                   <p>Fait à : {formData.faitA || 'Yaoundé'}</p>
                   <p>Le : {formData.datePaiement || formData.date || '27/09/2026'}</p>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold">Signature / Cachet</p>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontWeight: 700 }}>Signature / Cachet</p>
                 </div>
               </div>
             </div>
 
             <button
               onClick={() => setStep('payment')}
-              className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3.5 rounded-xl transition text-base mt-2"
+              style={{ width: '100%', backgroundColor: '#16a34a', color: '#ffffff', fontWeight: 700, padding: '14px', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '1rem' }}
             >
               Payer {selectedDoc.price} FCFA et Télécharger
             </button>
@@ -314,28 +313,28 @@ export default function DocExpressApp() {
         )}
 
         {step === 'payment' && selectedDoc && (
-          <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl max-w-sm mx-auto">
-            <h2 className="text-base font-bold text-white mb-1">Paiement Mobile Money</h2>
-            <p className="text-xs text-slate-400 mb-4">
-              Montant à régler : <strong className="text-sky-400">{selectedDoc.price} FCFA</strong>
+          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', padding: '24px', borderRadius: '16px', maxWidth: '380px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>Paiement Mobile Money</h2>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '16px' }}>
+              Montant à régler : <strong style={{ color: '#38bdf8' }}>{selectedDoc.price} FCFA</strong>
             </p>
 
-            <div className="flex flex-col gap-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <label className="block text-xs text-slate-300 mb-1">Numéro Orange ou MTN</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '4px' }}>Numéro Orange ou MTN</label>
                 <input
                   type="tel"
                   placeholder="Ex: 699000000"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                  style={{ width: '100%', backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '8px', padding: '10px', fontSize: '0.875rem', color: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
 
               <button
                 onClick={handlePayAndDownload}
                 disabled={isProcessing}
-                className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition text-sm disabled:opacity-50"
+                style={{ width: '100%', backgroundColor: '#16a34a', color: '#ffffff', fontWeight: 700, padding: '12px', borderRadius: '8px', border: 'none', cursor: 'pointer', opacity: isProcessing ? 0.6 : 1 }}
               >
                 {isProcessing ? 'Traitement en cours...' : 'Valider & Télécharger PDF'}
               </button>
@@ -344,7 +343,7 @@ export default function DocExpressApp() {
         )}
       </main>
 
-      <footer className="border-t border-slate-900 py-4 mt-8 text-center text-xs text-slate-600">
+      <footer style={{ borderTop: '1px solid #1e293b', paddingT: '16px', marginTop: '32px', textAlign: 'center', fontSize: '0.75rem', color: '#64748b' }}>
         © 2026 DOCEXPRESS — Tous droits réservés.
       </footer>
     </div>
