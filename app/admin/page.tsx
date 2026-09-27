@@ -201,7 +201,7 @@ export default function AdminPage() {
 
             <button
               type="submit"
-              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', backgroundColor: '#0284c7', color: '#ffffff', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', transition: 'background-color 0.2s' }}
+              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', backgroundColor: '#0284c7', color: '#ffffff', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' }}
             >
               Se connecter
             </button>
@@ -301,7 +301,7 @@ export default function AdminPage() {
               <p style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>Aucune commande trouvée.</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {orders.map((order, index) => {
+                {orders.map((order) => {
                   const isPaid = order.status === 'PAID'
                   const clientName = order.customer_name || order.full_name || order.form_data?.nom || 'Client Inconnu'
                   const clientPhone = order.customer_phone || order.phone || order.form_data?.telephone || 'Non renseigné'
@@ -319,8 +319,7 @@ export default function AdminPage() {
                         cursor: 'pointer',
                         display: 'flex',
                         justify: 'space-between',
-                        alignItems: 'center',
-                        animationDelay: `${index * 0.05}s`
+                        alignItems: 'center'
                       }}
                     >
                       <div>
