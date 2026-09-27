@@ -30,7 +30,7 @@ export default function Home() {
   // Génération d'un numéro de commande lisible (ex: CMD-1790458)
   const generateOrderNumber = () => `CMD-${Math.floor(1000000 + Math.random() * 9000000)}`;
 
-  // 1. Soumission du formulaire -> Envoie document_template_id requis par Supabase
+  // 1. Soumission du formulaire -> Adapté aux colonnes requises de Supabase
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const orderNumber = generateOrderNumber();
@@ -41,7 +41,9 @@ export default function Home() {
         order_number: orderNumber,
         amount: selectedDoc.price,
         status: 'PENDING',
-        document_template_id: selectedDoc.id, // Inclus pour valider la contrainte NOT NULL
+        document_template_id: selectedDoc.id,
+        customer_name: formData.nom,
+        customer_phone: formData.telephone,
         form_data: {
           ...formData,
           document_title: selectedDoc.title,
@@ -338,7 +340,7 @@ export default function Home() {
           <div style={{ fontSize: '40px', marginBottom: '10px' }}>⏳</div>
           <h3 style={{ color: '#f59e0b', margin: '0 0 10px 0' }}>Paiement en cours de vérification</h3>
           <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.5' }}>
-            Votre reçu a été transmis. Le statut sera validé sous peu.
+            Votre reçu a été transmitted. Le statut sera validé sous peu.
           </p>
         </div>
       )}
