@@ -275,7 +275,7 @@ export default function AdminPage() {
                         border: '1px solid #334155',
                         cursor: 'pointer',
                         display: 'flex',
-                        justify: 'space-between',
+                        justifyContent: 'space-between',
                         alignItems: 'center'
                       }}
                     >
