@@ -3,28 +3,15 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
-// Initialisation du client Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-interface Order {
-  id: string
-  created_at: string
-  full_name: string
-  phone: string
-  document_type: string
-  status: string
-  receipt_url?: string
-  amount?: number
-}
-
 export default function AdminPage() {
-  const [orders, setOrders] = useState<Order[]>([])
+  const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
-  // Charger les commandes
   const fetchOrders = async () => {
     setLoading(true)
     const { data, error } = await supabase
@@ -33,7 +20,7 @@ export default function AdminPage() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Erreur lors du chargement des commandes :', error)
+      console.error('Erreur chargement:', error)
     } else if (data) {
       setOrders(data)
     }
@@ -44,7 +31,6 @@ export default function AdminPage() {
     fetchOrders()
   }, [])
 
-  // Valider le paiement d'une commande
   const handleValidatePayment = async (orderId: string) => {
     setUpdatingId(orderId)
     const { error } = await supabase
@@ -53,9 +39,8 @@ export default function AdminPage() {
       .eq('id', orderId)
 
     if (error) {
-      alert('Erreur lors de la validation du paiement : ' + error.message)
+      alert('Erreur lors de la validation : ' + error.message)
     } else {
-      // Mettre à jour la liste locale
       setOrders((prev) =>
         prev.map((order) =>
           order.id === orderId ? { ...order, status: 'PAID' } : order
@@ -65,18 +50,31 @@ export default function AdminPage() {
     setUpdatingId(null)
   }
 
+  // Fonction pour récupérer l'URL publique de la capture d'écran
+  const getProofImageUrl = (filePath?: string) => {
+    if (!filePath) return null
+    // Si c'est déjà une URL complète
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath
+    }
+    // Sinon, génération depuis le bucket Supabase 'payment-proofs'
+    const { data } = supabase.storage.from('payment-proofs').getPublicUrl(filePath)
+    return data?.publicUrl || null
+  }
+
   return (
-    <main className="min-h-screen bg-slate-950 text-white p-4 md:p-8 font-sans">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div style={{ backgroundColor: '#0f172a', color: '#ffffff', minHeight: '100vh', padding: '16px', fontFamily: 'sans-serif' }}>
+      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+        
         {/* En-tête */}
-        <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
           <div>
-            <h1 className="text-2xl font-bold text-blue-400">DOCEXPRESS — Administration</h1>
-            <p className="text-sm text-slate-400">Gestion et validation des paiements Mobile Money</p>
+            <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#38bdf8', margin: 0 }}>DOCEXPRESS Admin</h1>
+            <p style={{ fontSize: '12px', color: '#94a3b8', margin: '4px 0 0 0' }}>Validation des paiements</p>
           </div>
           <button
             onClick={fetchOrders}
-            className="px-4 py-2 text-sm bg-slate-800 hover:bg-slate-700 rounded-lg transition"
+            style={{ backgroundColor: '#1e293b', color: '#ffffff', border: '1px solid #475569', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}
           >
             🔄 Rafraîchir
           </button>
@@ -84,75 +82,117 @@ export default function AdminPage() {
 
         {/* Liste des commandes */}
         {loading ? (
-          <div className="text-center py-12 text-slate-400">Chargement des commandes...</div>
+          <p style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>Chargement...</p>
         ) : orders.length === 0 ? (
-          <div className="text-center py-12 text-slate-500">Aucune commande trouvée.</div>
+          <p style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>Aucune commande trouvée.</p>
         ) : (
-          <div className="space-y-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {orders.map((order) => {
               const isPaid = order.status === 'PAID'
+              
+              // Données client
+              const clientName = order.customer_name || order.full_name || order.form_data?.nom || 'Client Inconnu'
+              const clientPhone = order.customer_phone || order.phone || order.form_data?.telephone || 'Non renseigné'
+              const docTitle = order.form_data?.document_title || order.document_template_id || 'Document'
+              
+              // Récupération de l'image de preuve
+              const proofPath = order.payment_proof_url || order.receipt_url
+              const imageUrl = getProofImageUrl(proofPath)
+
               return (
                 <div
                   key={order.id}
-                  className="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+                  style={{
+                    backgroundColor: '#1e293b',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    border: '1px solid #334155',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3">
-                      <span className="font-semibold text-lg text-white">{order.full_name || 'Client Inconnu'}</span>
-                      <span
-                        className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                          isPaid
-                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                            : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                        }`}
-                      >
-                        {isPaid ? 'PAYÉ' : 'EN ATTENTE DE VÉRIFICATION'}
-                      </span>
-                    </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 'bold', fontSize: '16px', color: '#ffffff' }}>{clientName}</span>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        padding: '4px 8px',
+                        borderRadius: '12px',
+                        fontWeight: 'bold',
+                        backgroundColor: isPaid ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                        color: isPaid ? '#34d399' : '#fbbf24',
+                        border: isPaid ? '1px solid #059669' : '1px solid #d97706'
+                      }}
+                    >
+                      {isPaid ? 'PAYÉ' : 'EN ATTENTE'}
+                    </span>
+                  </div>
 
-                    <p className="text-sm text-slate-400">
-                      Téléphone : <span className="text-slate-200">{order.phone || 'Non renseigné'}</span> | Type :{' '}
-                      <span className="text-slate-200">{order.document_type || 'Document'}</span>
+                  <div style={{ fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5' }}>
+                    <p style={{ margin: '2px 0' }}>📞 <strong>Tél :</strong> {clientPhone}</p>
+                    <p style={{ margin: '2px 0' }}>📄 <strong>Document :</strong> {docTitle}</p>
+                    <p style={{ margin: '2px 0', fontSize: '11px', color: '#64748b' }}>
+                      🕒 {new Date(order.created_at).toLocaleString('fr-FR')}
                     </p>
+                  </div>
 
-                    <p className="text-xs text-slate-500">
-                      ID : {order.id} • {new Date(order.created_at).toLocaleString('fr-FR')}
-                    </p>
-
-                    {order.receipt_url && (
-                      <a
-                        href={order.receipt_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-block text-xs text-blue-400 underline mt-1 hover:text-blue-300"
-                      >
-                        📎 Voir la preuve de paiement (Reçu)
+                  {/* AFFICHAGE DIRECT DE LA CAPTURE D'ÉCRAN */}
+                  {imageUrl ? (
+                    <div style={{ marginTop: '8px' }}>
+                      <p style={{ fontSize: '12px', color: '#38bdf8', fontWeight: 'bold', marginBottom: '6px' }}>
+                        📷 Capture du reçu reçu :
+                      </p>
+                      <a href={imageUrl} target="_blank" rel="noreferrer">
+                        <img
+                          src={imageUrl}
+                          alt="Preuve de paiement"
+                          style={{
+                            width: '100%',
+                            maxHeight: '300px',
+                            objectFit: 'contain',
+                            borderRadius: '8px',
+                            border: '1px solid #475569',
+                            backgroundColor: '#0f172a'
+                          }}
+                        />
                       </a>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '12px', color: '#ef4444', italic: 'true' }}>
+                      ⚠️ Aucune capture d'écran jointe pour cette commande.
+                    </p>
+                  )}
 
-                  {/* Bouton d'action */}
-                  <div>
-                    {!isPaid ? (
-                      <button
-                        onClick={() => handleValidatePayment(order.id)}
-                        disabled={updatingId === order.id}
-                        className="w-full md:w-auto px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg shadow transition disabled:opacity-50"
-                      >
-                        {updatingId === order.id ? 'Validation...' : '✅ Valider le paiement'}
-                      </button>
-                    ) : (
-                      <span className="text-xs text-emerald-400 font-medium bg-emerald-950/50 px-3 py-1.5 rounded-lg border border-emerald-800/40">
-                        Paiement confirmé
-                      </span>
-                    )}
-                  </div>
+                  {!isPaid ? (
+                    <button
+                      onClick={() => handleValidatePayment(order.id)}
+                      disabled={updatingId === order.id}
+                      style={{
+                        backgroundColor: '#10b981',
+                        color: '#ffffff',
+                        border: 'none',
+                        padding: '12px',
+                        borderRadius: '8px',
+                        fontWeight: 'bold',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        marginTop: '8px'
+                      }}
+                    >
+                      {updatingId === order.id ? 'Validation...' : '✅ Valider le paiement'}
+                    </button>
+                  ) : (
+                    <div style={{ textAlign: 'center', fontSize: '12px', color: '#34d399', fontWeight: 'bold', marginTop: '4px' }}>
+                      ✓ Paiement confirmé
+                    </div>
+                  )}
                 </div>
               )
             })}
           </div>
         )}
       </div>
-    </main>
+    </div>
   )
 }
