@@ -9,7 +9,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// --- TYPES ---
 interface FieldConfig {
   name: string;
   label: string;
@@ -27,7 +26,6 @@ interface DocumentTemplate {
   fields: FieldConfig[];
 }
 
-// --- CATALOGUE DES DOCUMENTS ---
 const DOCUMENTS: DocumentTemplate[] = [
   {
     id: 'quittance-loyer',
@@ -101,7 +99,7 @@ export default function DocExpressApp() {
   const [activeTab, setActiveTab] = useState<'accueil' | 'documents' | 'commandes' | 'profil'>('accueil');
   const [selectedDoc, setSelectedDoc] = useState<DocumentTemplate | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<'TOUS' | 'EMPLOI' | 'BUSINESS' | 'LOCATION'>('TOUS');
-  const [step, setStep] = useState<'form' | 'preview' | 'payment'>('form');
+  const [step, setStep] = useState<'form' | 'preview'>('form');
   
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -118,7 +116,7 @@ export default function DocExpressApp() {
       const timer = setTimeout(() => {
         setShowSplash(false);
         sessionStorage.setItem('docexpress_visited', 'true');
-      }, 3000);
+      }, 2500);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -152,7 +150,7 @@ export default function DocExpressApp() {
       pdf.save(`${selectedDoc?.id || 'document'}_DocExpress.pdf`);
     } catch (error) {
       console.error('Erreur PDF:', error);
-      alert('Une erreur est survenue lors de la génération.');
+      alert('Une erreur est survenue lors du téléchargement.');
     }
   };
 
@@ -196,27 +194,27 @@ export default function DocExpressApp() {
     : DOCUMENTS.filter(d => d.category === selectedCategory);
 
   return (
-    <div className="bg-[#020617] text-[#f8fafc] min-h-screen font-sans w-full pb-24 md:pb-12 border-t-4 border-[#2563eb]">
+    <div style={{ backgroundColor: '#020617', color: '#f8fafc', minHeight: '100vh', fontFamily: 'system-ui, sans-serif', paddingBottom: '90px' }}>
       
-      {/* 1. SPLASHSCREEN */}
+      {/* 1. ANIMATION D'OUVERTURE (SPLASH SCREEN) */}
       {showSplash && (
-        <div className="fixed inset-0 z-50 bg-[#020617] flex flex-col items-center justify-center p-6 text-white">
-          <div className="text-center space-y-4 max-w-sm w-full">
-            <h1 className="text-3xl font-black tracking-[0.2em]">
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, backgroundColor: '#020617', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div style={{ textAlign: 'center', maxWidth: '320px', width: '100%' }}>
+            <h1 style={{ fontSize: '28px', fontWeight: '900', letterSpacing: '0.2em', color: '#ffffff', margin: 0 }}>
               DOCEXPRESS
             </h1>
-            <div className="w-full h-[2px] bg-[#1e293b] relative overflow-hidden my-4">
-              <div className="absolute top-0 left-0 h-full w-full bg-[#2563eb] animate-[printLine_1.5s_ease-in-out_infinite]"></div>
+            <div style={{ width: '100%', height: '2px', backgroundColor: '#1e293b', position: 'relative', overflow: 'hidden', margin: '16px 0' }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: '100%', backgroundColor: '#2563eb' }}></div>
             </div>
-            <div className="h-6 flex items-center justify-center font-mono text-xs text-[#94a3b8] tracking-widest uppercase">
-              <span>CONTRAT • FACTURE • CV • QUITTANCE</span>
+            <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#94a3b8', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+              CONTRAT • FACTURE • CV • QUITTANCE
             </div>
-            <p className="text-xs text-[#cbd5e1] font-light">
+            <p style={{ fontSize: '12px', color: '#cbd5e1', marginTop: '12px', fontWeight: '300' }}>
               Vos documents. Votre activité. En quelques minutes.
             </p>
             <button
               onClick={() => setShowSplash(false)}
-              className="mt-6 text-xs font-bold text-[#2563eb] tracking-wider uppercase border-b border-[#2563eb] pb-1"
+              style={{ marginTop: '24px', fontSize: '11px', fontWeight: '700', color: '#2563eb', background: 'none', border: 'none', borderBottom: '1px solid #2563eb', paddingBottom: '2px', cursor: 'pointer' }}
             >
               COMMENCER →
             </button>
@@ -224,64 +222,65 @@ export default function DocExpressApp() {
         </div>
       )}
 
-      {/* HEADER */}
-      <header className="max-w-3xl mx-auto px-6 py-6 border-b border-[#1e293b] flex justify-between items-center bg-[#020617]">
-        <div 
-          className="cursor-pointer"
-          onClick={() => { setSelectedDoc(null); setActiveTab('accueil'); }}
-        >
-          <span className="text-xl font-black tracking-[0.15em] text-white">
+      {/* HEADER ÉDITORIAL */}
+      <header style={{ backgroundColor: '#020617', borderBottom: '1px solid #1e293b', padding: '20px 24px', maxWidth: '768px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div onClick={() => { setSelectedDoc(null); setActiveTab('accueil'); }} style={{ cursor: 'pointer' }}>
+          <span style={{ fontSize: '20px', fontWeight: '900', letterSpacing: '0.15em', color: '#ffffff', display: 'block', lineHeight: 1 }}>
             DOCEXPRESS
           </span>
-          <span className="text-[10px] text-[#38bdf8] block font-mono tracking-widest">
+          <span style={{ fontSize: '10px', color: '#38bdf8', fontFamily: 'monospace', letterSpacing: '0.2em', display: 'block', marginTop: '4px' }}>
             CAMEROUN
           </span>
         </div>
 
-        <div className="hidden md:flex gap-8 text-xs font-semibold tracking-wider text-[#94a3b8]">
-          <button onClick={() => { setSelectedDoc(null); setActiveTab('accueil'); }} className={activeTab === 'accueil' ? 'text-white' : 'hover:text-white'}>ACCUEIL</button>
-          <button onClick={() => { setSelectedDoc(null); setActiveTab('documents'); }} className={activeTab === 'documents' ? 'text-white' : 'hover:text-white'}>CATALOGUE</button>
-          <button onClick={() => setActiveTab('commandes')} className={activeTab === 'commandes' ? 'text-white' : 'hover:text-white'}>HISTORIQUE</button>
+        <div style={{ display: 'flex', gap: '24px', fontSize: '12px', fontWeight: '600', color: '#94a3b8' }}>
+          <button onClick={() => { setSelectedDoc(null); setActiveTab('accueil'); }} style={{ background: 'none', border: 'none', color: activeTab === 'accueil' ? '#ffffff' : '#94a3b8', cursor: 'pointer' }}>ACCUEIL</button>
+          <button onClick={() => { setSelectedDoc(null); setActiveTab('documents'); }} style={{ background: 'none', border: 'none', color: activeTab === 'documents' ? '#ffffff' : '#94a3b8', cursor: 'pointer' }}>CATALOGUE</button>
+          <button onClick={() => setActiveTab('commandes')} style={{ background: 'none', border: 'none', color: activeTab === 'commandes' ? '#ffffff' : '#94a3b8', cursor: 'pointer' }}>HISTORIQUE</button>
         </div>
       </header>
 
-      {/* CONTENU */}
-      <main className="max-w-3xl mx-auto px-6 pt-6">
+      {/* CONTENU PRINCIPAL */}
+      <main style={{ maxWidth: '768px', margin: '0 auto', padding: '0 24px' }}>
         
         {!selectedDoc && (
           <div>
             {/* TEXTE DYNAMIQUE */}
-            <section className="py-6 border-b border-[#1e293b]">
-              <p className="text-xs font-mono text-[#38bdf8] mb-2 uppercase tracking-wider">
+            <section style={{ borderBottom: '1px solid #1e293b', padding: '24px 0' }}>
+              <p style={{ fontSize: '11px', fontFamily: 'monospace', color: '#38bdf8', textTransform: 'uppercase', margin: '0 0 8px 0' }}>
                 // Service de génération conforme
               </p>
-              <h2 className="text-2xl md:text-3xl font-extrabold text-white leading-tight">
+              <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#ffffff', lineHeight: '1.3', margin: 0 }}>
                 Vous avez les informations. <br />
                 Nous avons le{' '}
-                <span className="inline-block text-[#2563eb] underline underline-offset-8 transition-all duration-300">
+                <span style={{ color: '#2563eb', textDecoration: 'underline', textUnderlineOffset: '6px' }}>
                   {WORDS[wordIndex]}
                 </span>
               </h2>
-              <p className="text-xs text-[#cbd5e1] mt-3 font-light leading-relaxed">
+              <p style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '12px', fontWeight: '300', lineHeight: '1.5' }}>
                 Éditez des documents officiels pré-structurés selon les normes locales. Paiement instantané via Mobile Money.
               </p>
             </section>
 
             {/* SELECTION PAR CATÉGORIES */}
-            <section className="py-6 border-b border-[#1e293b]">
-              <p className="text-xs font-semibold text-white mb-1">Bonjour 👋</p>
-              <h3 className="text-base font-bold text-[#f8fafc] mb-4">Quel document vous faut-il aujourd’hui ?</h3>
+            <section style={{ borderBottom: '1px solid #1e293b', padding: '20px 0' }}>
+              <p style={{ fontSize: '12px', fontWeight: '600', color: '#ffffff', margin: '0 0 4px 0' }}>Bonjour 👋</p>
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#f8fafc', margin: '0 0 16px 0' }}>Quel document vous faut-il aujourd’hui ?</h3>
 
-              <div className="flex gap-2 overflow-x-auto pb-2 font-mono text-[11px]">
+              <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', fontFamily: 'monospace', fontSize: '11px' }}>
                 {(['TOUS', 'EMPLOI', 'BUSINESS', 'LOCATION'] as const).map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-3 py-1.5 uppercase tracking-wider border transition-all ${
-                      selectedCategory === cat 
-                        ? 'bg-white text-[#020617] font-bold border-white' 
-                        : 'bg-[#0f172a] text-[#94a3b8] border-[#1e293b]'
-                    }`}
+                    style={{
+                      backgroundColor: selectedCategory === cat ? '#ffffff' : '#0f172a',
+                      color: selectedCategory === cat ? '#020617' : '#94a3b8',
+                      border: `1px solid ${selectedCategory === cat ? '#ffffff' : '#1e293b'}`,
+                      padding: '6px 12px',
+                      textTransform: 'uppercase',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
                   >
                     {cat}
                   </button>
@@ -289,30 +288,30 @@ export default function DocExpressApp() {
               </div>
             </section>
 
-            {/* LISTE EDITORIALE SANS CARTES (CORRIGÉE FLEXBOX) */}
-            <section className="py-4">
-              <div className="divide-y divide-[#1e293b]">
+            {/* LISTE PLATE ÉDITORIALE (PRIX ET BOUTON SEPARÉS PARFAITEMENT) */}
+            <section style={{ padding: '16px 0' }}>
+              <div>
                 {filteredDocs.map((doc) => (
                   <div
                     key={doc.id}
                     onClick={() => handleSelectDoc(doc)}
-                    className="group py-5 flex flex-col gap-2 cursor-pointer hover:bg-[#0f172a]/60 px-2 transition-colors"
+                    style={{ borderBottom: '1px solid #1e293b', padding: '20px 0', cursor: 'pointer' }}
                   >
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-mono text-xs font-bold text-[#38bdf8]">{doc.code} —</span>
-                      <h4 className="text-sm font-bold tracking-wide text-white group-hover:text-[#2563eb] transition-colors">
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '700', color: '#38bdf8' }}>{doc.code} —</span>
+                      <h4 style={{ fontSize: '15px', fontWeight: '700', color: '#ffffff', margin: 0 }}>
                         {doc.title}
                       </h4>
                     </div>
 
-                    <p className="text-xs text-[#94a3b8] font-light pl-6">
+                    <p style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '300', margin: '8px 0 12px 0', paddingLeft: '24px' }}>
                       {doc.description}
                     </p>
 
-                    <div className="pl-6 pt-1 flex items-center justify-between text-xs">
-                      <span className="font-mono text-[#cbd5e1] font-semibold">{doc.price} FCFA</span>
-                      <span className="font-bold text-[#2563eb] group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                        Remplir <span className="text-sm">→</span>
+                    <div style={{ paddingLeft: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '12px' }}>
+                      <span style={{ color: '#cbd5e1', fontWeight: '700' }}>{doc.price} FCFA</span>
+                      <span style={{ color: '#2563eb', fontWeight: '700', fontFamily: 'sans-serif', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        Remplir <span style={{ fontSize: '14px' }}>→</span>
                       </span>
                     </div>
                   </div>
@@ -322,44 +321,41 @@ export default function DocExpressApp() {
           </div>
         )}
 
-        {/* ÉDITION DOCUMENT */}
+        {/* ÉDITION ET APERÇU DE DOCUMENT */}
         {selectedDoc && (
-          <div className="py-4">
+          <div style={{ padding: '24px 0' }}>
             <button
               onClick={() => setSelectedDoc(null)}
-              className="text-xs font-mono text-[#94a3b8] hover:text-white mb-6 block"
+              style={{ background: 'none', border: 'none', color: '#94a3b8', fontFamily: 'monospace', fontSize: '12px', cursor: 'pointer', marginBottom: '24px', padding: 0 }}
             >
               ← RETOUR AUX DOCUMENTS
             </button>
 
             {step === 'form' && (
-              <div className="max-w-lg mx-auto space-y-6">
-                <div>
-                  <span className="text-[10px] font-mono text-[#38bdf8] uppercase tracking-widest">// ÉTAPE 1 SUR 2</span>
-                  <h3 className="text-lg font-bold text-white mt-1">{selectedDoc.title}</h3>
+              <div style={{ maxWidth: '500px', margin: '0 auto' }}>
+                <div style={{ marginBottom: '20px' }}>
+                  <span style={{ fontSize: '10px', fontFamily: 'monospace', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.1em' }}>// ÉTAPE 1 SUR 2</span>
+                  <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#ffffff', margin: '4px 0 0 0' }}>{selectedDoc.title}</h3>
                 </div>
 
-                <form 
-                  onSubmit={(e) => { e.preventDefault(); setStep('preview'); }} 
-                  className="space-y-4"
-                >
+                <form onSubmit={(e) => { e.preventDefault(); setStep('preview'); }}>
                   {selectedDoc.fields.map((f) => (
-                    <div key={f.name} className="space-y-1">
-                      <label className="block text-xs font-mono text-[#cbd5e1] uppercase">{f.label}</label>
+                    <div key={f.name} style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontFamily: 'monospace', color: '#cbd5e1', textTransform: 'uppercase', marginBottom: '6px' }}>{f.label}</label>
                       <input
                         type={f.type || 'text'}
                         required
                         placeholder={f.placeholder}
                         value={formData[f.name] || ''}
                         onChange={(e) => handleInputChange(f.name, e.target.value)}
-                        className="w-full bg-[#0f172a] border border-[#1e293b] focus:border-[#2563eb] p-3 text-xs text-white outline-none"
+                        style={{ width: '100%', backgroundColor: '#0f172a', border: '1px solid #1e293b', padding: '12px', fontSize: '13px', color: '#ffffff', outline: 'none', boxSizing: 'border-box' }}
                       />
                     </div>
                   ))}
 
                   <button
                     type="submit"
-                    className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold py-3 text-xs uppercase tracking-wider transition-colors mt-6"
+                    style={{ width: '100%', backgroundColor: '#2563eb', color: '#ffffff', fontWeight: '700', border: 'none', padding: '14px', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', marginTop: '16px' }}
                   >
                     Générer l’aperçu conforme →
                   </button>
@@ -368,83 +364,82 @@ export default function DocExpressApp() {
             )}
 
             {step === 'preview' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-base font-bold text-white">Vérification de l'Aperçu</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#ffffff', margin: 0 }}>Vérification de l'Aperçu</h3>
                   <button 
                     onClick={() => setStep('form')}
-                    className="text-xs text-[#94a3b8] underline hover:text-white"
+                    style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '12px', textDecoration: 'underline', cursor: 'pointer' }}
                   >
                     Modifier
                   </button>
                 </div>
 
-                {/* VISUEL PDF */}
                 <div
                   ref={documentRef}
-                  className="bg-white text-black p-6 shadow-2xl font-serif text-xs max-w-xl mx-auto space-y-4 border-t-4 border-[#020617]"
+                  style={{ backgroundColor: '#ffffff', color: '#000000', padding: '32px', fontFamily: 'serif', fontSize: '12px', maxWidth: '600px', margin: '0 auto', borderTop: '4px solid #020617', width: '100%', boxSizing: 'border-box' }}
                 >
-                  <div className="text-center border-b pb-3 border-black">
-                    <h2 className="text-base font-extrabold uppercase tracking-widest">{selectedDoc.title}</h2>
-                    <p className="text-[9px] font-sans tracking-widest text-gray-500 uppercase mt-0.5">République du Cameroun — Document officiel</p>
+                  <div style={{ textAlign: 'center', borderBottom: '1px solid #000000', paddingBottom: '12px', marginBottom: '20px' }}>
+                    <h2 style={{ fontSize: '16px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>{selectedDoc.title}</h2>
+                    <p style={{ fontSize: '9px', fontFamily: 'sans-serif', letterSpacing: '0.1em', color: '#666666', textTransform: 'uppercase', marginTop: '4px' }}>République du Cameroun — Document officiel</p>
                   </div>
 
-                  <div className="leading-relaxed space-y-3 text-gray-900">
+                  <div style={{ lineHeight: '1.8', color: '#111111' }}>
                     {selectedDoc.id === 'quittance-loyer' && (
                       <>
-                        <p>
+                        <p style={{ margin: '0 0 12px 0' }}>
                           Je soussigné(e), <strong>{formData.bailleur || '________________'}</strong>, propriétaire du logement situé à <strong>{formData.adresse || '________________'}</strong>, atteste avoir reçu de M./Mme <strong>{formData.locataire || '________________'}</strong> la somme de <strong>{formData.montant || '0'} FCFA</strong>.
                         </p>
-                        <p>
+                        <p style={{ margin: 0 }}>
                           Ce versement constitue le règlement intégral du loyer pour la période : <strong>{formData.periode || '________________'}</strong>.
                         </p>
                       </>
                     )}
                   </div>
 
-                  <div className="pt-6 flex justify-between items-end border-t border-gray-200 text-[10px] font-sans">
+                  <div style={{ paddingTop: '24px', marginTop: '32px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '10px', fontFamily: 'sans-serif' }}>
                     <div>
-                      <p>Fait à : {formData.faitA || 'Yaoundé'}</p>
-                      <p>Le : {formData.datePaiement || formData.date || '27/09/2026'}</p>
+                      <p style={{ margin: '0 0 4px 0' }}>Fait à : {formData.faitA || 'Yaoundé'}</p>
+                      <p style={{ margin: 0 }}>Le : {formData.datePaiement || formData.date || '27/09/2026'}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold">Signature / Cachet</p>
-                      <div className="h-8 w-20 mt-1 border-dashed border border-gray-300"></div>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ fontWeight: '700', margin: '0 0 4px 0' }}>Signature / Cachet</p>
+                      <div style={{ height: '32px', width: '80px', border: '1px dashed #cccccc' }}></div>
                     </div>
                   </div>
                 </div>
 
                 {generationStep > 0 ? (
-                  <div className="bg-[#0f172a] border border-[#2563eb] p-4 text-center space-y-3 max-w-sm mx-auto">
-                    <span className="text-xs font-mono text-[#38bdf8] block">TRAITEMENT SÉCURISÉ</span>
-                    <div className="space-y-1 text-xs font-mono">
-                      <p className={generationStep >= 1 ? 'text-white' : 'text-[#64748b]'}>
+                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #2563eb', padding: '20px', textAlign: 'center', maxWidth: '360px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+                    <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#38bdf8', display: 'block', marginBottom: '8px' }}>TRAITEMENT SÉCURISÉ</span>
+                    <div style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                      <p style={{ color: generationStep >= 1 ? '#ffffff' : '#64748b', margin: '4px 0' }}>
                         {generationStep >= 1 ? '✓ Données reçues' : '○ En attente'}
                       </p>
-                      <p className={generationStep >= 2 ? 'text-white' : 'text-[#64748b]'}>
+                      <p style={{ color: generationStep >= 2 ? '#ffffff' : '#64748b', margin: '4px 0' }}>
                         {generationStep >= 2 ? '✓ Mise en forme PDF...' : '○ Structuration'}
                       </p>
-                      <p className={generationStep >= 3 ? 'text-[#38bdf8] font-bold' : 'text-[#64748b]'}>
+                      <p style={{ color: generationStep >= 3 ? '#38bdf8' : '#64748b', fontWeight: generationStep >= 3 ? '700' : '400', margin: '4px 0' }}>
                         {generationStep >= 3 ? '✓ Document généré !' : '○ Impression'}
                       </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="max-w-sm mx-auto bg-[#0f172a] border border-[#1e293b] p-5 space-y-3">
-                    <p className="text-xs font-mono text-[#cbd5e1]">
-                      Paiement Mobile Money — <strong className="text-white">{selectedDoc.price} FCFA</strong>
+                  <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', padding: '20px', maxWidth: '360px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+                    <p style={{ fontSize: '12px', fontFamily: 'monospace', color: '#cbd5e1', margin: '0 0 12px 0' }}>
+                      Paiement Mobile Money — <strong style={{ color: '#ffffff' }}>{selectedDoc.price} FCFA</strong>
                     </p>
                     <input
                       type="tel"
                       placeholder="N° Mobile Money (ex: 699000000)"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="w-full bg-[#020617] border border-[#334155] p-2.5 text-xs text-white outline-none"
+                      style={{ width: '100%', backgroundColor: '#020617', border: '1px solid #334155', padding: '12px', fontSize: '12px', color: '#ffffff', outline: 'none', marginBottom: '12px', boxSizing: 'border-box' }}
                     />
                     <button
                       onClick={handlePayAndDownload}
                       disabled={isProcessing}
-                      className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold py-3 text-xs uppercase tracking-wider"
+                      style={{ width: '100%', backgroundColor: '#2563eb', color: '#ffffff', fontWeight: '700', border: 'none', padding: '12px', fontSize: '12px', textTransform: 'uppercase', cursor: 'pointer' }}
                     >
                       Payer & Télécharger PDF
                     </button>
@@ -457,41 +452,22 @@ export default function DocExpressApp() {
 
       </main>
 
-      {/* BARRE DE NAVIGATION MOBILE FIXE */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#020617] border-t border-[#1e293b] py-3 px-6 flex justify-around items-center text-[10px] font-mono tracking-wider text-[#94a3b8] z-40">
-        <button 
-          onClick={() => { setSelectedDoc(null); setActiveTab('accueil'); }} 
-          className={`flex flex-col items-center ${activeTab === 'accueil' ? 'text-white font-bold' : ''}`}
-        >
-          <span>ACCUEIL</span>
+      {/* BARRE DE NAVIGATION MOBILE FIXE (EN BAS) */}
+      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: '#020617', borderTop: '1px solid #1e293b', padding: '12px 24px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', fontSize: '10px', fontFamily: 'monospace', letterSpacing: '0.1em', color: '#94a3b8', zIndex: 40 }}>
+        <button onClick={() => { setSelectedDoc(null); setActiveTab('accueil'); }} style={{ background: 'none', border: 'none', color: activeTab === 'accueil' ? '#ffffff' : '#94a3b8', fontWeight: activeTab === 'accueil' ? '700' : '400', cursor: 'pointer' }}>
+          ACCUEIL
         </button>
-        <button 
-          onClick={() => { setSelectedDoc(null); setActiveTab('documents'); }} 
-          className={`flex flex-col items-center ${activeTab === 'documents' ? 'text-white font-bold' : ''}`}
-        >
-          <span>DOCUMENTS</span>
+        <button onClick={() => { setSelectedDoc(null); setActiveTab('documents'); }} style={{ background: 'none', border: 'none', color: activeTab === 'documents' ? '#ffffff' : '#94a3b8', fontWeight: activeTab === 'documents' ? '700' : '400', cursor: 'pointer' }}>
+          DOCUMENTS
         </button>
-        <button 
-          onClick={() => setActiveTab('commandes')} 
-          className={`flex flex-col items-center ${activeTab === 'commandes' ? 'text-white font-bold' : ''}`}
-        >
-          <span>COMMANDES</span>
+        <button onClick={() => setActiveTab('commandes')} style={{ background: 'none', border: 'none', color: activeTab === 'commandes' ? '#ffffff' : '#94a3b8', fontWeight: activeTab === 'commandes' ? '700' : '400', cursor: 'pointer' }}>
+          COMMANDES
         </button>
-        <button 
-          onClick={() => setActiveTab('profil')} 
-          className={`flex flex-col items-center ${activeTab === 'profil' ? 'text-white font-bold' : ''}`}
-        >
-          <span>PROFIL</span>
+        <button onClick={() => setActiveTab('profil')} style={{ background: 'none', border: 'none', color: activeTab === 'profil' ? '#ffffff' : '#94a3b8', fontWeight: activeTab === 'profil' ? '700' : '400', cursor: 'pointer' }}>
+          PROFIL
         </button>
       </nav>
 
-      <style jsx global>{`
-        @keyframes printLine {
-          0% { transform: translateX(-100%); }
-          50% { transform: translateX(0%); }
-          100% { transform: translateX(100%); }
-        }
-      `}</style>
     </div>
   );
 }
