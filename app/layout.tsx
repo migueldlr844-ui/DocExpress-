@@ -1,6 +1,9 @@
-export const metadata = {
-  title: 'DocExpress',
-  description: 'Génération de documents administratifs',
+import './globals.css';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'DocExpress Cameroun',
+  description: 'Service de génération de documents conformes',
 };
 
 export default function RootLayout({
@@ -9,26 +12,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr">
-      <head>
-        <style>{`
-          body {
-            background-color: #f8fafc !important;
-            color: #0f172a !important;
-            font-family: system-ui, -apple-system, sans-serif !important;
-            margin: 0;
-            padding: 0;
-          }
-          header {
-            background-color: #1e3a8a !important;
-            color: white !important;
-          }
-          h1, h2, h3, h4, p, span {
-            color: #0f172a !important;
-          }
-        `}</style>
-      </head>
-      <body>{children}</body>
+    <html lang="fr" className="dark">
+      <body className="bg-[#020617] text-[#f8fafc] min-h-screen">
+        {children}
+      </body>
     </html>
   );
 }
