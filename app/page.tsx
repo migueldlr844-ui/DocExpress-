@@ -30,7 +30,7 @@ export default function Home() {
   // Génération d'un numéro de commande lisible (ex: CMD-1790458)
   const generateOrderNumber = () => `CMD-${Math.floor(1000000 + Math.random() * 9000000)}`;
 
-  // 1. Soumission du formulaire -> Compatible avec votre schéma de table Supabase
+  // 1. Soumission du formulaire -> Envoie document_template_id requis par Supabase
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const orderNumber = generateOrderNumber();
@@ -41,6 +41,7 @@ export default function Home() {
         order_number: orderNumber,
         amount: selectedDoc.price,
         status: 'PENDING',
+        document_template_id: selectedDoc.id, // Inclus pour valider la contrainte NOT NULL
         form_data: {
           ...formData,
           document_title: selectedDoc.title,
