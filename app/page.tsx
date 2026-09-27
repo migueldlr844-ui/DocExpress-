@@ -1,379 +1,304 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import DocumentRenderer from '@/components/DocumentRenderer';
+import { useState, useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
 
-// Initialisation du client Supabase
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// --- CONFIGURATION ---
+const ADMIN_PASSWORD = 'admin123' // 🔑 Votre mot de passe
 
-// Catalogue des documents DocExpress
-const DOCUMENTS_LIST = [
-  { id: 'quittance', title: 'Quittance de loyer', price: 500 },
-  { id: 'contrat_bail', title: 'Contrat de bail commercial / d’habitation', price: 1500 },
-  { id: 'facture', title: 'Facture / Proforma', price: 500 },
-  { id: 'recu_vente', title: 'Reçu de vente de véhicule / bien', price: 1000 },
-  { id: 'cv_express', title: 'Mise en page CV Professionnel', price: 1000 },
-];
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export default function Home() {
-  const [selectedDoc, setSelectedDoc] = useState(DOCUMENTS_LIST[0]);
-  const [step, setStep] = useState<'SELECT' | 'FORM' | 'PREVIEW' | 'PAYMENT' | 'VERIFICATION' | 'PAID'>('SELECT');
-  const [formData, setFormData] = useState({ nom: '', telephone: '', ville: 'Yaoundé' });
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
+export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
+  const [passwordInput, setPasswordInput] = useState<string>('')
+  const [passwordError, setPasswordError] = useState<boolean>(false)
 
-  // Génération d'un numéro de commande lisible (ex: CMD-1790458)
-  const generateOrderNumber = () => `CMD-${Math.floor(1000000 + Math.random() * 9000000)}`;
+  const [orders, setOrders] = useState<any[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
 
-  // 1. Soumission du formulaire -> Adapté aux colonnes requises de Supabase
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const orderNumber = generateOrderNumber();
+  // Vérifier la session au démarrage
+  useEffect(() => {
+    const savedAuth = localStorage.getItem('doc_express_admin_auth')
+    if (savedAuth === 'true') {
+      setIsAuthenticated(true)
+    }
+  }, [])
 
+  // Connexion
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    const cleanInput = passwordInput.trim().toLowerCase()
+    const cleanTarget = ADMIN_PASSWORD.trim().toLowerCase()
+
+    if (cleanInput === cleanTarget) {
+      setIsAuthenticated(true)
+      localStorage.setItem('doc_express_admin_auth', 'true')
+      setPasswordError(false)
+    } else {
+      setPasswordError(true)
+    }
+  }
+
+  // Déconnexion
+  const handleLogout = () => {
+    setIsAuthenticated(false)
+    localStorage.removeItem('doc_express_admin_auth')
+    setPasswordInput('')
+  }
+
+  // Charger les commandes
+  const fetchOrders = async () => {
+    setLoading(true)
     const { data, error } = await supabase
       .from('orders')
-      .insert({
-        order_number: orderNumber,
-        amount: selectedDoc.price,
-        status: 'PENDING',
-        document_template_id: selectedDoc.id,
-        customer_name: formData.nom,
-        customer_phone: formData.telephone,
-        form_data: {
-          ...formData,
-          document_title: selectedDoc.title,
-          document_id: selectedDoc.id,
-        },
-      })
-      .select()
-      .single();
+      .select('*')
+      .order('created_at', { ascending: false })
 
     if (error) {
-      alert('Erreur lors de la création de la commande : ' + error.message);
-      return;
+      console.error('Erreur chargement:', error)
+    } else if (data) {
+      setOrders(data)
     }
+    setLoading(false)
+  }
 
-    setOrderId(data.id);
-    setStep('PREVIEW');
-  };
-
-  // 2. Envoi de la preuve de paiement dans le Bucket payment-proofs
-  const handleUploadProof = async () => {
-    if (!file || !orderId) return alert('Veuillez sélectionner la capture d’écran ou la photo du reçu OM/MTN.');
-
-    setUploading(true);
-    const fileExt = file.name.split('.').pop();
-    const filePath = `${orderId}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('payment-proofs')
-      .upload(filePath, file, { upsert: true });
-
-    if (uploadError) {
-      setUploading(false);
-      return alert('Erreur lors de l’envoi de la preuve : ' + uploadError.message);
-    }
-
-    const { error: updateError } = await supabase
-      .from('orders')
-      .update({
-        payment_proof_url: filePath,
-        status: 'PAYMENT_VERIFICATION',
-      })
-      .eq('id', orderId);
-
-    setUploading(false);
-
-    if (updateError) {
-      return alert('Erreur lors de la mise à jour de la commande.');
-    }
-
-    setStep('VERIFICATION');
-  };
-
-  // 3. Vérification automatique du statut de paiement
   useEffect(() => {
-    if (step !== 'VERIFICATION' || !orderId) return;
+    if (isAuthenticated) {
+      fetchOrders()
+    }
+  }, [isAuthenticated])
 
-    const interval = setInterval(async () => {
-      const { data } = await supabase
-        .from('orders')
-        .select('status')
-        .eq('id', orderId)
-        .single();
+  // Valider le paiement
+  const handleValidatePayment = async (orderId: string) => {
+    setUpdatingId(orderId)
+    const { error } = await supabase
+      .from('orders')
+      .update({ status: 'PAID' })
+      .eq('id', orderId)
 
-      if (data && data.status === 'PAID') {
-        setStep('PAID');
-        clearInterval(interval);
+    if (error) {
+      alert('Erreur lors de la validation : ' + error.message)
+    } else {
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === orderId ? { ...order, status: 'PAID' } : order
+        )
+      )
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder((prev: any) => ({ ...prev, status: 'PAID' }))
       }
-    }, 3000);
+    }
+    setUpdatingId(null)
+  }
 
-    return () => clearInterval(interval);
-  }, [step, orderId]);
+  // Obtenir l'URL de l'image du reçu
+  const getProofImageUrl = (filePath?: string) => {
+    if (!filePath) return null
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath
+    }
+    const { data } = supabase.storage.from('payment-proofs').getPublicUrl(filePath)
+    return data?.publicUrl || null
+  }
 
   return (
-    <div
-      style={{
-        maxWidth: '520px',
-        margin: '0 auto',
-        padding: '20px 15px',
-        color: '#f8fafc',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        paddingBottom: '100px',
-      }}
-    >
-      <header style={{ textAlign: 'center', marginBottom: '25px' }}>
-        <h1 style={{ fontSize: '26px', fontWeight: '900', color: '#38bdf8', letterSpacing: '1px', margin: 0 }}>
-          DOCEXPRESS
-        </h1>
-        <p style={{ fontSize: '13px', color: '#94a3b8', marginTop: '4px' }}>
-          Génération Instantanée de Documents Conformes
-        </p>
-      </header>
+    <>
+      <style>{`
+        @keyframes adminFadeIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes adminPopIn {
+          0% { opacity: 0; transform: scale(0.94); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes adminGlow {
+          0%, 100% { box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+          50% { box-shadow: 0 0 25px rgba(56, 189, 248, 0.4); }
+        }
+        @keyframes adminShake {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-6px); }
+          40%, 80% { transform: translateX(6px); }
+        }
+        .anim-fade { animation: adminFadeIn 0.35s ease-out forwards; }
+        .anim-pop { animation: adminPopIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .anim-glow { animation: adminGlow 3s infinite ease-in-out; }
+        .anim-shake { animation: adminShake 0.3s ease-in-out; }
+        .admin-card { transition: transform 0.2s ease, border-color 0.2s ease; }
+        .admin-card:hover { transform: translateY(-2px); border-color: #38bdf8 !important; }
+      `}</style>
 
-      {/* SÉLECTION DU DOCUMENT */}
-      {step === 'SELECT' && (
-        <div>
-          <h2 style={{ fontSize: '16px', marginBottom: '15px', color: '#cbd5e1' }}>Sélectionnez un document :</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {DOCUMENTS_LIST.map((doc) => (
-              <div
-                key={doc.id}
-                onClick={() => {
-                  setSelectedDoc(doc);
-                  setStep('FORM');
-                }}
-                style={{
-                  background: '#0f172a',
-                  border: '1px solid #1e293b',
-                  padding: '16px',
-                  borderRadius: '10px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <span style={{ fontWeight: '600', fontSize: '15px' }}>{doc.title}</span>
-                <span style={{ background: '#0284c7', color: '#fff', padding: '4px 8px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold' }}>
-                  {doc.price} FCFA
+      {/* ÉCRAN 1 : CONNEXION */}
+      {!isAuthenticated ? (
+        <div style={{ backgroundColor: '#0f172a', color: '#ffffff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'sans-serif' }}>
+          <form
+            onSubmit={handleLogin}
+            className={`anim-pop anim-glow ${passwordError ? 'anim-shake' : ''}`}
+            style={{ backgroundColor: '#1e293b', padding: '28px', borderRadius: '16px', border: '1px solid #334155', width: '100%', maxWidth: '360px', textAlign: 'center' }}
+          >
+            <div style={{ fontSize: '36px', marginBottom: '8px' }}>🔐</div>
+            <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '8px' }}>Espace Administrateur</h1>
+            <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px' }}>Entrez votre mot de passe pour continuer.</p>
+            
+            <input
+              type="text"
+              placeholder="Mot de passe"
+              autoCapitalize="none"
+              autoCorrect="off"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#ffffff', fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box', outline: 'none' }}
+            />
+
+            {passwordError && (
+              <p style={{ color: '#ef4444', fontSize: '12px', marginBottom: '12px', fontWeight: 'bold' }}>Mot de passe incorrect !</p>
+            )}
+
+            <button
+              type="submit"
+              style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', backgroundColor: '#0284c7', color: '#ffffff', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' }}
+            >
+              Se connecter
+            </button>
+          </form>
+        </div>
+      ) : selectedOrder ? (
+        /* ÉCRAN 2 : DÉTAILS D'UNE COMMANDE */
+        <div style={{ backgroundColor: '#0f172a', color: '#ffffff', minHeight: '100vh', padding: '16px', fontFamily: 'sans-serif' }}>
+          <div style={{ maxWidth: '600px', margin: '0 auto' }} className="anim-fade">
+            
+            <button
+              onClick={() => setSelectedOrder(null)}
+              style={{ backgroundColor: '#334155', color: '#ffffff', border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              ⬅️ Retour à la liste
+            </button>
+
+            <div style={{ backgroundColor: '#1e293b', borderRadius: '16px', padding: '20px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '16px' }} className="anim-pop">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#ffffff' }}>Détail de la commande</h2>
+                <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '12px', fontWeight: 'bold', backgroundColor: selectedOrder.status === 'PAID' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)', color: selectedOrder.status === 'PAID' ? '#34d399' : '#fbbf24', border: selectedOrder.status === 'PAID' ? '1px solid #059669' : '1px solid #d97706' }}>
+                  {selectedOrder.status === 'PAID' ? 'PAYÉ' : 'EN ATTENTE'}
                 </span>
               </div>
-            ))}
+
+              <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#cbd5e1' }}>
+                <p style={{ margin: '4px 0' }}>👤 <strong>Client :</strong> {selectedOrder.customer_name || selectedOrder.full_name || selectedOrder.form_data?.nom || 'Client Inconnu'}</p>
+                <p style={{ margin: '4px 0' }}>📞 <strong>Téléphone :</strong> {selectedOrder.customer_phone || selectedOrder.phone || selectedOrder.form_data?.telephone || 'Non renseigné'}</p>
+                <p style={{ margin: '4px 0' }}>📄 <strong>Document :</strong> {selectedOrder.form_data?.document_title || selectedOrder.document_template_id || 'Document'}</p>
+                <p style={{ margin: '4px 0', fontSize: '12px', color: '#64748b' }}>🕒 Date : {new Date(selectedOrder.created_at).toLocaleString('fr-FR')}</p>
+                <p style={{ margin: '4px 0', fontSize: '10px', color: '#475569' }}>ID : {selectedOrder.id}</p>
+              </div>
+
+              {getProofImageUrl(selectedOrder.payment_proof_url || selectedOrder.receipt_url) ? (
+                <div>
+                  <p style={{ fontSize: '13px', color: '#38bdf8', fontWeight: 'bold', marginBottom: '8px' }}>📷 Capture du reçu Mobile Money :</p>
+                  <a href={getProofImageUrl(selectedOrder.payment_proof_url || selectedOrder.receipt_url)!} target="_blank" rel="noreferrer">
+                    <img
+                      src={getProofImageUrl(selectedOrder.payment_proof_url || selectedOrder.receipt_url)!}
+                      alt="Preuve de paiement"
+                      style={{ width: '100%', maxHeight: '450px', objectFit: 'contain', borderRadius: '12px', border: '1px solid #475569', backgroundColor: '#0f172a' }}
+                    />
+                  </a>
+                </div>
+              ) : (
+                <p style={{ fontSize: '13px', color: '#ef4444', fontStyle: 'italic' }}>⚠️ Aucune capture d'écran jointe.</p>
+              )}
+
+              {selectedOrder.status !== 'PAID' ? (
+                <button
+                  onClick={() => handleValidatePayment(selectedOrder.id)}
+                  disabled={updatingId === selectedOrder.id}
+                  style={{ backgroundColor: '#10b981', color: '#ffffff', border: 'none', padding: '14px', borderRadius: '10px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', marginTop: '12px' }}
+                >
+                  {updatingId === selectedOrder.id ? 'Validation en cours...' : '✅ Valider le paiement'}
+                </button>
+              ) : (
+                <div style={{ textAlign: 'center', fontSize: '14px', color: '#34d399', fontWeight: 'bold', padding: '10px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '8px' }}>
+                  ✓ Paiement confirmé
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ÉCRAN 3 : LISTE DES COMMANDES */
+        <div style={{ backgroundColor: '#0f172a', color: '#ffffff', minHeight: '100vh', padding: '16px', fontFamily: 'sans-serif' }}>
+          <div style={{ maxWidth: '600px', margin: '0 auto' }} className="anim-fade">
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
+              <div>
+                <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#38bdf8', margin: 0 }}>DOCEXPRESS Admin</h1>
+                <p style={{ fontSize: '12px', color: '#94a3b8', margin: '4px 0 0 0' }}>Liste des commandes</p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={fetchOrders}
+                  style={{ backgroundColor: '#1e293b', color: '#ffffff', border: '1px solid #475569', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}
+                >
+                  🔄
+                </button>
+                <button
+                  onClick={handleLogout}
+                  style={{ backgroundColor: '#7f1d1d', color: '#ffffff', border: 'none', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}
+                >
+                  Déconnexion
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <p style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>Chargement des commandes...</p>
+            ) : orders.length === 0 ? (
+              <p style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>Aucune commande trouvée.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {orders.map((order) => {
+                  const isPaid = order.status === 'PAID'
+                  const clientName = order.customer_name || order.full_name || order.form_data?.nom || 'Client Inconnu'
+                  const clientPhone = order.customer_phone || order.phone || order.form_data?.telephone || 'Non renseigné'
+
+                  return (
+                    <div
+                      key={order.id}
+                      onClick={() => setSelectedOrder(order)}
+                      className="admin-card anim-fade"
+                      style={{
+                        backgroundColor: '#1e293b',
+                        borderRadius: '12px',
+                        padding: '16px',
+                        border: '1px solid #334155',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justify: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 'bold', fontSize: '15px', color: '#ffffff', marginBottom: '4px' }}>{clientName}</div>
+                        <div style={{ fontSize: '12px', color: '#94a3b8' }}>📞 {clientPhone}</div>
+                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>🕒 {new Date(order.created_at).toLocaleString('fr-FR')}</div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '12px', fontWeight: 'bold', backgroundColor: isPaid ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)', color: isPaid ? '#34d399' : '#fbbf24', border: isPaid ? '1px solid #059669' : '1px solid #d97706' }}>
+                          {isPaid ? 'PAYÉ' : 'EN ATTENTE'}
+                        </span>
+                        <span style={{ fontSize: '12px', color: '#38bdf8' }}>Voir 🔍</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
-
-      {/* FORMULAIRE CLIENT */}
-      {step === 'FORM' && (
-        <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <button
-            type="button"
-            onClick={() => setStep('SELECT')}
-            style={{ background: 'transparent', color: '#94a3b8', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, fontSize: '13px' }}
-          >
-            ← Choisir un autre document
-          </button>
-
-          <div style={{ background: '#0f172a', padding: '15px', borderRadius: '8px', border: '1px solid #1e293b' }}>
-            <h2 style={{ fontSize: '18px', margin: '0 0 5px 0', color: '#f8fafc' }}>{selectedDoc.title}</h2>
-            <span style={{ color: '#38bdf8', fontWeight: 'bold', fontSize: '15px' }}>
-              Tarif : {selectedDoc.price} FCFA
-            </span>
-          </div>
-
-          <div>
-            <label style={{ fontSize: '13px', color: '#94a3b8' }}>Nom et Prénom complet</label>
-            <input
-              placeholder="Ex: Jean Paul"
-              value={formData.nom}
-              onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                marginTop: '5px',
-                borderRadius: '6px',
-                border: '1px solid #334155',
-                background: '#0f172a',
-                color: '#fff',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '13px', color: '#94a3b8' }}>Numéro de téléphone</label>
-            <input
-              placeholder="Ex: 6XXXXXXXX"
-              value={formData.telephone}
-              onChange={(e) => setFormData({ ...formData, telephone: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                marginTop: '5px',
-                borderRadius: '6px',
-                border: '1px solid #334155',
-                background: '#0f172a',
-                color: '#fff',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: '13px', color: '#94a3b8' }}>Ville de résidence</label>
-            <input
-              placeholder="Ex: Yaoundé"
-              value={formData.ville}
-              onChange={(e) => setFormData({ ...formData, ville: e.target.value })}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                marginTop: '5px',
-                borderRadius: '6px',
-                border: '1px solid #334155',
-                background: '#0f172a',
-                color: '#fff',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          <button
-            type="submit"
-            style={{
-              padding: '14px',
-              background: '#2563eb',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 'bold',
-              fontSize: '15px',
-              cursor: 'pointer',
-              marginTop: '10px',
-            }}
-          >
-            Générer l'aperçu
-          </button>
-        </form>
-      )}
-
-      {/* APERÇU FILIGRANÉ */}
-      {step === 'PREVIEW' && (
-        <div>
-          <h3 style={{ fontSize: '16px', marginBottom: '10px' }}>Vérification du rendu :</h3>
-          <DocumentRenderer docType={selectedDoc.title} formData={formData} isWatermarked={true} />
-          <button
-            onClick={() => setStep('PAYMENT')}
-            style={{
-              marginTop: '15px',
-              width: '100%',
-              padding: '14px',
-              background: '#16a34a',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 'bold',
-              fontSize: '15px',
-              cursor: 'pointer',
-            }}
-          >
-            Procéder au paiement ({selectedDoc.price} FCFA)
-          </button>
-        </div>
-      )}
-
-      {/* PAIEMENT & CAPTURE */}
-      {step === 'PAYMENT' && (
-        <div style={{ background: '#1e293b', padding: '20px', borderRadius: '8px', border: '1px solid #334155' }}>
-          <h3 style={{ margin: '0 0 10px 0', fontSize: '18px' }}>Paiement Mobile Money</h3>
-          <p style={{ fontSize: '14px', color: '#cbd5e1' }}>
-            Envoyez <strong style={{ color: '#38bdf8' }}>{selectedDoc.price} FCFA</strong> au numéro ci-dessous :
-          </p>
-
-          <div style={{ background: '#0f172a', padding: '15px', borderRadius: '8px', margin: '15px 0', fontSize: '15px', border: '1px solid #334155' }}>
-            <p style={{ margin: '5px 0' }}>🟠 <strong>Orange Money / MTN :</strong> 655 06 93 96</p>
-            <p style={{ margin: '5px 0', fontSize: '12px', color: '#94a3b8' }}>Nom du compte : Atangana Desire</p>
-          </div>
-
-          <hr style={{ borderColor: '#334155', margin: '20px 0' }} />
-
-          <h4 style={{ margin: '0 0 10px 0', fontSize: '15px' }}>📷 Joindre la capture du reçu</h4>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            style={{ marginBottom: '15px', display: 'block', width: '100%', fontSize: '13px' }}
-          />
-
-          <button
-            onClick={handleUploadProof}
-            disabled={uploading || !file}
-            style={{
-              width: '100%',
-              padding: '14px',
-              background: uploading || !file ? '#475569' : '#2563eb',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 'bold',
-              fontSize: '15px',
-              cursor: uploading || !file ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {uploading ? 'Envoi en cours...' : 'Valider mon paiement'}
-          </button>
-        </div>
-      )}
-
-      {/* ATTENTE VÉRIFICATION */}
-      {step === 'VERIFICATION' && (
-        <div style={{ textAlign: 'center', background: '#1e293b', padding: '30px 20px', borderRadius: '8px', border: '1px solid #334155' }}>
-          <div style={{ fontSize: '40px', marginBottom: '10px' }}>⏳</div>
-          <h3 style={{ color: '#f59e0b', margin: '0 0 10px 0' }}>Paiement en cours de vérification</h3>
-          <p style={{ fontSize: '14px', color: '#cbd5e1', lineHeight: '1.5' }}>
-            Votre reçu a été transmitted. Le statut sera validé sous peu.
-          </p>
-        </div>
-      )}
-
-      {/* DOCUMENT FINAL SANS FILIGRANE */}
-      {step === 'PAID' && (
-        <div>
-          <div style={{ textAlign: 'center', background: '#064e3b', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
-            <h3 style={{ color: '#34d399', margin: 0 }}>Paiement Confirmé !</h3>
-            <p style={{ fontSize: '13px', color: '#ecfdf5', margin: '5px 0 0 0' }}>Votre document officiel est prêt.</p>
-          </div>
-
-          <DocumentRenderer docType={selectedDoc.title} formData={formData} isWatermarked={false} />
-
-          <button
-            onClick={() => window.print()}
-            style={{
-              marginTop: '15px',
-              width: '100%',
-              padding: '14px',
-              background: '#059669',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              fontWeight: 'bold',
-              fontSize: '16px',
-              cursor: 'pointer',
-            }}
-          >
-            📥 Imprimer / Télécharger le document PDF
-          </button>
-        </div>
-      )}
-    </div>
-  );
+    </>
+  )
 }
