@@ -1,12 +1,10 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { createClient } from '@supabase/supabase-js';
 
-// Configuration Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -38,7 +36,7 @@ const DOCUMENTS: DocumentTemplate[] = [
       { name: 'bailleur', label: 'Nom du Bailleur / Propriétaire', placeholder: 'Ex: M. Jean Dupont' },
       { name: 'locataire', label: 'Nom du Locataire', placeholder: 'Ex: Mme Marie Curie' },
       { name: 'montant', label: 'Montant du loyer (FCFA)', placeholder: 'Ex: 75000', type: 'number' },
-      { name: 'adresse', label: 'Adresse du logement', placeholder: 'Ex: Yaoundé, Quartier Bastos' },
+      { name: 'adresse', label: 'Adresse du logement', placeholder: 'Ex: Yaoundé, Bastos' },
       { name: 'periode', label: 'Période (Mois/Année)', placeholder: 'Ex: Septembre 2026' },
       { name: 'datePaiement', label: 'Date du paiement', placeholder: 'Ex: 05/09/2026' },
     ],
@@ -67,7 +65,7 @@ const DOCUMENTS: DocumentTemplate[] = [
       { name: 'declarant', label: 'Nom complet du déclarant', placeholder: 'Ex: Paul Biya' },
       { name: 'adresse', label: 'Adresse de résidence', placeholder: 'Ex: Yaoundé' },
       { name: 'cni', label: 'Numéro de CNI / Passeport', placeholder: 'Ex: 123456789' },
-      { name: 'declaration', label: 'Objet de la déclaration', placeholder: 'Ex: Je certifie sur l’honneur ne pas occuper d’autre emploi...' },
+      { name: 'declaration', label: 'Objet de la déclaration', placeholder: 'Ex: Je certifie sur l’honneur...' },
       { name: 'faitA', label: 'Fait à', placeholder: 'Ex: Yaoundé' },
       { name: 'date', label: 'Date', placeholder: 'Ex: 27/09/2026' },
     ],
@@ -109,8 +107,8 @@ export default function DocExpressApp() {
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`${selectedDoc?.id || 'document'}.pdf`);
     } catch (error) {
-      console.error('Erreur lors de la génération du PDF:', error);
-      alert('Erreur lors du téléchargement. Veuillez réessayer.');
+      console.error('Erreur PDF:', error);
+      alert('Erreur lors de la génération du PDF.');
     }
   };
 
@@ -123,7 +121,6 @@ export default function DocExpressApp() {
     setIsProcessing(true);
 
     try {
-      // Enregistrement dans Supabase si configuré
       if (supabaseUrl && supabaseAnonKey) {
         await supabase.from('transactions').insert([
           {
@@ -136,33 +133,32 @@ export default function DocExpressApp() {
         ]);
       }
     } catch (err) {
-      console.error('Erreur Supabase:', err);
+      console.error(err);
     }
 
-    // Simulation du délai de paiement Mobile Money
     setTimeout(async () => {
       setIsProcessing(false);
-      alert('Paiement validé avec succès ! Votre document va se télécharger.');
+      alert('Paiement validé ! Téléchargement en cours...');
       await generatePDF();
-    }, 2500);
+    }, 2000);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div style={{ backgroundColor: '#0f172a', color: '#f8fafc', minHeight: '100vh', fontFamily: 'sans-serif' }}>
       {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50 p-4">
-        <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setStep('select')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
+      <header style={{ borderBottom: '1px solid #1e293b', backgroundColor: '#0f172a', padding: '16px', position: 'sticky', top: 0, zIndex: 50 }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => setStep('select')}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #2563eb, #06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
               📄
             </div>
-            <span className="font-extrabold text-xl tracking-wider text-white">DOCEXPRESS</span>
+            <span style={{ fontWeight: 800, fontSize: '1.2rem', letterSpacing: '0.05em', color: '#ffffff' }}>DOCEXPRESS</span>
           </div>
 
           {selectedDoc && (
             <button
               onClick={() => setStep('select')}
-              className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition"
+              style={{ fontSize: '0.75rem', backgroundColor: '#1e293b', color: '#94a3b8', border: '1px solid #334155', padding: '6px 12px', borderRadius: '8px', cursor: 'pointer' }}
             >
               ← Retour au catalogue
             </button>
@@ -170,115 +166,150 @@ export default function DocExpressApp() {
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 md:p-6 flex flex-col justify-center">
-        {/* Étape 1 : Choix du document */}
+      {/* Main Content */}
+      <main style={{ maxWidth: '800px', margin: '0 auto', padding: '20px 16px' }}>
         {step === 'select' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="text-center my-8">
-              <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-3">
-                Vous avez les informations. Nous avons le document.
+          <div>
+            <div style={{ textAlign: 'center', margin: '24px 0 32px 0' }}>
+              <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#ffffff', marginBottom: '8px', lineHeight: 1.3 }}>
+                Vous avez les informations.<br />Nous avons le document.
               </h1>
-              <p className="text-slate-400 text-sm md:text-base max-w-lg mx-auto">
-                Tout ça, dans un seul endroit. Sélectionnez, remplissez et téléchargez en toute sécurité.
+              <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>
+                Sélectionnez, remplissez et téléchargez en toute sécurité.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {DOCUMENTS.map((doc) => (
                 <div
                   key={doc.id}
                   onClick={() => handleSelectDoc(doc)}
-                  className="bg-slate-900 border border-slate-800 hover:border-blue-500/50 hover:bg-slate-800/50 p-5 rounded-2xl cursor-pointer transition-all duration-200 group flex flex-col justify-between shadow-lg"
+                  style={{
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #334155',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justify: 'space-between',
+                  }}
                 >
                   <div>
-                    <span className="text-[10px] font-bold tracking-widest text-blue-400 uppercase bg-blue-500/10 px-2 py-1 rounded-md border border-blue-500/20">
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', padding: '4px 8px', borderRadius: '6px', letterSpacing: '0.05em' }}>
                       {doc.category}
                     </span>
-                    <h2 className="text-lg font-bold text-white mt-3 group-hover:text-blue-400 transition-colors">
+                    <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#ffffff', marginTop: '12px', marginBottom: '6px' }}>
                       {doc.title}
                     </h2>
-                    <p className="text-slate-400 text-xs mt-2 leading-relaxed">{doc.description}</p>
+                    <p style={{ color: '#94a3b8', fontSize: '0.8rem', lineHeight: 1.4 }}>
+                      {doc.description}
+                    </p>
                   </div>
-                  <div className="mt-6 flex justify-between items-center pt-4 border-t border-slate-800/80">
-                    <span className="font-extrabold text-blue-400 text-sm">{doc.price} FCFA</span>
-                    <span className="text-xs font-semibold text-white bg-blue-600 px-3 py-1.5 rounded-xl group-hover:bg-blue-500 transition">
+
+                  <div style={{ marginTop: '20px', paddingTop: '12px', borderTop: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 800, color: '#38bdf8', fontSize: '1rem' }}>{doc.price} FCFA</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#ffffff', backgroundColor: '#2563eb', padding: '8px 14px', borderRadius: '10px' }}>
                       Générer →
                     </span>
                   </div>
                 </div>
               ))}
             </div>
-          </motion.div>
+          </div>
         )}
 
-        {/* Étape 2 : Formulaire de saisie */}
         {step === 'form' && selectedDoc && (
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="max-w-xl mx-auto w-full">
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
-              <h2 className="text-xl font-bold text-white mb-1">{selectedDoc.title}</h2>
-              <p className="text-xs text-slate-400 mb-6">Remplissez les informations ci-dessous pour générer le document.</p>
+          <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', padding: '24px', borderRadius: '16px', maxWidth: '500px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>{selectedDoc.title}</h2>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '20px' }}>Remplissez les informations ci-dessous.</p>
 
-              <form onSubmit={handleProceedToPreview} className="space-y-4">
-                {selectedDoc.fields.map((f) => (
-                  <div key={f.name}>
-                    <label className="block text-xs font-medium text-slate-300 mb-1.5">{f.label}</label>
-                    <input
-                      type={f.type || 'text'}
-                      required
-                      placeholder={f.placeholder}
-                      value={formData[f.name] || ''}
-                      onChange={(e) => handleInputChange(f.name, e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition"
-                    />
-                  </div>
-                ))}
+            <form onSubmit={handleProceedToPreview} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {selectedDoc.fields.map((f) => (
+                <div key={f.name}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>{f.label}</label>
+                  <input
+                    type={f.type || 'text'}
+                    required
+                    placeholder={f.placeholder}
+                    value={formData[f.name] || ''}
+                    onChange={(e) => handleInputChange(f.name, e.target.value)}
+                    style={{
+                      width: '100%',
+                      backgroundColor: '#0f172a',
+                      border: '1px solid #334155',
+                      borderRadius: '10px',
+                      padding: '10px 12px',
+                      fontSize: '0.875rem',
+                      color: '#ffffff',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              ))}
 
-                <button
-                  type="submit"
-                  className="w-full mt-6 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-blue-500/25"
-                >
-                  Voir l’aperçu du document →
-                </button>
-              </form>
-            </div>
-          </motion.div>
+              <button
+                type="submit"
+                style={{
+                  width: '100%',
+                  marginTop: '12px',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem'
+                }}
+              >
+                Voir l’aperçu du document →
+              </button>
+            </form>
+          </div>
         )}
 
-        {/* Étape 3 : Aperçu du document */}
         {step === 'preview' && selectedDoc && (
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white">Aperçu officiel</h2>
-              <button
-                onClick={() => setStep('form')}
-                className="text-xs text-slate-400 hover:text-white underline"
-              >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff' }}>Aperçu officiel</h2>
+              <button onClick={() => setStep('form')} style={{ fontSize: '0.75rem', color: '#94a3b8', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}>
                 Modifier les saisies
               </button>
             </div>
 
-            {/* Document imprimable / capturable */}
             <div
               ref={documentRef}
-              className="bg-white text-slate-900 p-8 rounded-xl shadow-2xl font-serif max-w-2xl mx-auto border border-slate-200 min-h-[450px] flex flex-col justify-between"
+              style={{
+                backgroundColor: '#ffffff',
+                color: '#0f172a',
+                padding: '24px',
+                borderRadius: '12px',
+                fontFamily: 'serif',
+                minHeight: '380px',
+                display: 'flex',
+                flexDirection: 'column',
+                justify: 'space-between',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+              }}
             >
               <div>
-                <div className="text-center border-b-2 border-slate-900 pb-4 mb-6">
-                  <h1 className="text-2xl font-black uppercase tracking-wider">{selectedDoc.title}</h1>
+                <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: '12px', marginBottom: '16px' }}>
+                  <h1 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{selectedDoc.title}</h1>
                 </div>
 
-                <div className="space-y-4 text-sm leading-relaxed">
+                <div style={{ fontSize: '0.875rem', lineHeight: 1.6 }}>
                   {selectedDoc.id === 'quittance-loyer' && (
                     <>
-                      <p>
+                      <p style={{ marginBottom: '10px' }}>
                         Je soussigné(e), <strong>{formData.bailleur || '________________'}</strong>, propriétaire du logement situé à{' '}
                         <strong>{formData.adresse || '________________'}</strong>, reconnaît avoir reçu de M./Mme{' '}
                         <strong>{formData.locataire || '________________'}</strong> la somme de{' '}
                         <strong>{formData.montant || '0'} FCFA</strong>.
                       </p>
                       <p>
-                        Ce versement correspond au règlement intégral du loyer pour la période de{' '}
+                        Règlement intégral du loyer pour la période de :{' '}
                         <strong>{formData.periode || '________________'}</strong>.
                       </p>
                     </>
@@ -286,24 +317,24 @@ export default function DocExpressApp() {
 
                   {selectedDoc.id === 'recu-loyer' && (
                     <>
-                      <p>
+                      <p style={{ marginBottom: '10px' }}>
                         Reçu de M./Mme <strong>{formData.locataire || '________________'}</strong> la somme de{' '}
                         <strong>{formData.montant || '0'} FCFA</strong>.
                       </p>
                       <p>
-                        Motif du versement : <strong>{formData.motif || '________________'}</strong>.
+                        Motif : <strong>{formData.motif || '________________'}</strong>.
                       </p>
                     </>
                   )}
 
                   {selectedDoc.id === 'attestation-honneur' && (
                     <>
-                      <p>
+                      <p style={{ marginBottom: '10px' }}>
                         Je soussigné(e), <strong>{formData.declarant || '________________'}</strong>, demeurant à{' '}
                         <strong>{formData.adresse || '________________'}</strong>, titulaire de la CNI n°{' '}
                         <strong>{formData.cni || '________________'}</strong>, atteste sur l’honneur que :
                       </p>
-                      <p className="italic my-4 bg-slate-50 p-4 border-l-4 border-slate-900">
+                      <p style={{ fontStyle: 'italic', backgroundColor: '#f1f5f9', padding: '12px', borderLeft: '3px solid #0f172a', margin: '12px 0' }}>
                         « {formData.declaration || '________________'} »
                       </p>
                     </>
@@ -311,67 +342,90 @@ export default function DocExpressApp() {
                 </div>
               </div>
 
-              <div className="pt-8 border-t border-slate-300 flex justify-between text-xs font-sans text-slate-600">
+              <div style={{ paddingTop: '16px', borderTop: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#475569', fontFamily: 'sans-serif' }}>
                 <div>
                   <p>Fait à : {formData.faitA || 'Yaoundé'}</p>
                   <p>Le : {formData.datePaiement || formData.date || '27/09/2026'}</p>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold">Signature / Cachet</p>
-                  <div className="h-12"></div>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontWeight: 700 }}>Signature / Cachet</p>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-4 max-w-2xl mx-auto">
-              <button
-                onClick={() => setStep('payment')}
-                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-500 hover:to-emerald-400 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-green-500/25 text-center"
-              >
-                Payer {selectedDoc.price} FCFA et Télécharger
-              </button>
-            </div>
-          </motion.div>
+            <button
+              onClick={() => setStep('payment')}
+              style={{
+                width: '100%',
+                backgroundColor: '#16a34a',
+                color: '#ffffff',
+                fontWeight: 700,
+                padding: '14px',
+                borderRadius: '10px',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                marginTop: '8px'
+              }}
+            >
+              Payer {selectedDoc.price} FCFA et Télécharger
+            </button>
+          </div>
         )}
 
-        {/* Étape 4 : Paiement Mobile Money */}
         {step === 'payment' && selectedDoc && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto w-full">
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
-              <h2 className="text-lg font-bold text-white mb-2">Paiement Mobile Money</h2>
-              <p className="text-xs text-slate-400 mb-6">
-                Montant à régler : <strong className="text-blue-400">{selectedDoc.price} FCFA</strong>
-              </p>
+          <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', padding: '24px', borderRadius: '16px', maxWidth: '400px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>Paiement Mobile Money</h2>
+            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '16px' }}>
+              Montant à régler : <strong style={{ color: '#38bdf8' }}>{selectedDoc.price} FCFA</strong>
+            </p>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                    Numéro de téléphone Orange / MTN
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="Ex: 699000000"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-blue-500 transition"
-                  />
-                </div>
-
-                <button
-                  onClick={handlePayAndDownload}
-                  disabled={isProcessing}
-                  className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition shadow-lg shadow-green-500/20 disabled:opacity-50"
-                >
-                  {isProcessing ? 'Traitement du paiement...' : 'Valider & Télécharger PDF'}
-                </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '6px' }}>Numéro Orange ou MTN</label>
+                <input
+                  type="tel"
+                  placeholder="Ex: 699000000"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  style={{
+                    width: '100%',
+                    backgroundColor: '#0f172a',
+                    border: '1px solid #334155',
+                    borderRadius: '10px',
+                    padding: '10px 12px',
+                    fontSize: '0.875rem',
+                    color: '#ffffff',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
               </div>
+
+              <button
+                onClick={handlePayAndDownload}
+                disabled={isProcessing}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#16a34a',
+                  color: '#ffffff',
+                  fontWeight: 700,
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  opacity: isProcessing ? 0.6 : 1
+                }}
+              >
+                {isProcessing ? 'Traitement en cours...' : 'Valider & Télécharger PDF'}
+              </button>
             </div>
-          </motion.div>
+          </div>
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-900 py-4 text-center text-xs text-slate-600">
+      <footer style={{ borderTop: '1px solid #1e293b', padding: '16px', textAlign: 'center', fontSize: '0.75rem', color: '#64748b', marginTop: '32px' }}>
         © 2026 DOCEXPRESS — Tous droits réservés.
       </footer>
     </div>
