@@ -4106,24 +4106,14 @@ export default function Home() {
               '_'
             );
 
-        pdf.save(
-          `${safeTitle}_DocExpress.pdf`
-        );
-      } catch (error) {
-        console.error(
-          'Erreur lors du téléchargement :',
-          error
-        );
+            pdf.save(`${safeTitle}_DocExpress.pdf`);
+  } catch (error) {
+    console.error('Erreur lors du téléchargement :', error);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-        alert(
-          'Une erreur est survenue lors de la génération du PDF.'
-        );
-      } finally {
-        setIsGeneratingPDF(
-          false
-        );
-      }
-    };
 
   // ============================================================
   // STYLE INPUTS
