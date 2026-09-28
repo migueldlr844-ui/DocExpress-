@@ -4039,10 +4039,8 @@ export default function Home() {
                 offsetY
             );
 
-          const pageCanvas =
-            document.createElement(
-              'canvas'
-            );
+          const pageCanvas = document.createElement('canvas');
+
 
           pageCanvas.width =
             canvas.width;
