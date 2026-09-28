@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
 // --- CONFIGURATION ---
-const ADMIN_PASSWORD = 'admin123' // 🔑 Votre mot de passe
+const ADMIN_PASSWORD = 'admin123'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -20,7 +20,6 @@ export default function AdminPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
 
-  // Vérifier la session au démarrage
   useEffect(() => {
     const savedAuth = localStorage.getItem('doc_express_admin_auth')
     if (savedAuth === 'true') {
@@ -28,7 +27,6 @@ export default function AdminPage() {
     }
   }, [])
 
-  // Connexion
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
     const cleanInput = passwordInput.trim().toLowerCase()
@@ -43,14 +41,12 @@ export default function AdminPage() {
     }
   }
 
-  // Déconnexion
   const handleLogout = () => {
     setIsAuthenticated(false)
     localStorage.removeItem('doc_express_admin_auth')
     setPasswordInput('')
   }
 
-  // Charger les commandes
   const fetchOrders = async () => {
     setLoading(true)
     const { data, error } = await supabase
@@ -72,7 +68,6 @@ export default function AdminPage() {
     }
   }, [isAuthenticated])
 
-  // Valider le paiement
   const handleValidatePayment = async (orderId: string) => {
     setUpdatingId(orderId)
     const { error } = await supabase
@@ -95,7 +90,6 @@ export default function AdminPage() {
     setUpdatingId(null)
   }
 
-  // Obtenir l'URL de l'image du reçu
   const getProofImageUrl = (filePath?: string) => {
     if (!filePath) return null
     if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
@@ -107,83 +101,42 @@ export default function AdminPage() {
 
   return (
     <>
-      {/* Styles d'animations injectés */}
-      <style jsx global>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(15px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+      <style>{`
+        @keyframes adminFadeIn {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-
-        @keyframes popIn {
-          0% {
-            opacity: 0;
-            transform: scale(0.92);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1);
-          }
+        @keyframes adminPopIn {
+          0% { opacity: 0; transform: scale(0.94); }
+          100% { opacity: 1; transform: scale(1); }
         }
-
-        @keyframes pulseGlow {
-          0%, 100% {
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
-          }
-          50% {
-            box-shadow: 0 0 25px rgba(56, 189, 248, 0.4);
-          }
+        @keyframes adminGlow {
+          0%, 100% { box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); }
+          50% { box-shadow: 0 0 25px rgba(56, 189, 248, 0.4); }
         }
-
-        @keyframes shake {
+        @keyframes adminShake {
           0%, 100% { transform: translateX(0); }
           20%, 60% { transform: translateX(-6px); }
           40%, 80% { transform: translateX(6px); }
         }
-
-        .animate-fade-in {
-          animation: fadeIn 0.4s ease-out forwards;
-        }
-
-        .animate-pop-in {
-          animation: popIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        .animate-glow {
-          animation: pulseGlow 3s infinite ease-in-out;
-        }
-
-        .animate-shake {
-          animation: shake 0.3s ease-in-out;
-        }
-
-        .order-card {
-          transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .order-card:hover {
-          transform: translateY(-2px);
-          border-color: #38bdf8 !important;
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
+        .anim-fade { animation: adminFadeIn 0.35s ease-out forwards; }
+        .anim-pop { animation: adminPopIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .anim-glow { animation: adminGlow 3s infinite ease-in-out; }
+        .anim-shake { animation: adminShake 0.3s ease-in-out; }
+        .admin-card { transition: transform 0.2s ease, border-color 0.2s ease; }
+        .admin-card:hover { transform: translateY(-2px); border-color: #38bdf8 !important; }
       `}</style>
 
-      {/* --- ÉCRAN 1 : CONNEXION PAR MOT DE PASSE --- */}
       {!isAuthenticated ? (
         <div style={{ backgroundColor: '#0f172a', color: '#ffffff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', fontFamily: 'sans-serif' }}>
           <form
             onSubmit={handleLogin}
-            className={`animate-pop-in animate-glow ${passwordError ? 'animate-shake' : ''}`}
+            className={`anim-pop anim-glow ${passwordError ? 'anim-shake' : ''}`}
             style={{ backgroundColor: '#1e293b', padding: '28px', borderRadius: '16px', border: '1px solid #334155', width: '100%', maxWidth: '360px', textAlign: 'center' }}
           >
             <div style={{ fontSize: '36px', marginBottom: '8px' }}>🔐</div>
             <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '8px' }}>Espace Administrateur</h1>
-            <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px' }}>Entrez votre mot de passe pour accéder à la gestion des commandes.</p>
+            <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px' }}>Entrez votre mot de passe pour continuer.</p>
             
             <input
               type="text"
@@ -208,10 +161,8 @@ export default function AdminPage() {
           </form>
         </div>
       ) : selectedOrder ? (
-        /* --- ÉCRAN 2 : DÉTAILS D'UNE COMMANDE --- */
         <div style={{ backgroundColor: '#0f172a', color: '#ffffff', minHeight: '100vh', padding: '16px', fontFamily: 'sans-serif' }}>
-          <div style={{ maxWidth: '600px', margin: '0 auto' }} className="animate-fade-in">
-            
+          <div style={{ maxWidth: '600px', margin: '0 auto' }} className="anim-fade">
             <button
               onClick={() => setSelectedOrder(null)}
               style={{ backgroundColor: '#334155', color: '#ffffff', border: 'none', padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}
@@ -219,7 +170,7 @@ export default function AdminPage() {
               ⬅️ Retour à la liste
             </button>
 
-            <div style={{ backgroundColor: '#1e293b', borderRadius: '16px', padding: '20px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '16px' }} className="animate-pop-in">
+            <div style={{ backgroundColor: '#1e293b', borderRadius: '16px', padding: '20px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '16px' }} className="anim-pop">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0, color: '#ffffff' }}>Détail de la commande</h2>
                 <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '12px', fontWeight: 'bold', backgroundColor: selectedOrder.status === 'PAID' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)', color: selectedOrder.status === 'PAID' ? '#34d399' : '#fbbf24', border: selectedOrder.status === 'PAID' ? '1px solid #059669' : '1px solid #d97706' }}>
@@ -235,7 +186,6 @@ export default function AdminPage() {
                 <p style={{ margin: '4px 0', fontSize: '10px', color: '#475569' }}>ID : {selectedOrder.id}</p>
               </div>
 
-              {/* Image Reçu */}
               {getProofImageUrl(selectedOrder.payment_proof_url || selectedOrder.receipt_url) ? (
                 <div>
                   <p style={{ fontSize: '13px', color: '#38bdf8', fontWeight: 'bold', marginBottom: '8px' }}>📷 Capture du reçu Mobile Money :</p>
@@ -268,11 +218,8 @@ export default function AdminPage() {
           </div>
         </div>
       ) : (
-        /* --- ÉCRAN 3 : LISTE DES COMMANDES --- */
         <div style={{ backgroundColor: '#0f172a', color: '#ffffff', minHeight: '100vh', padding: '16px', fontFamily: 'sans-serif' }}>
-          <div style={{ maxWidth: '600px', margin: '0 auto' }} className="animate-fade-in">
-            
-            {/* En-tête */}
+          <div style={{ maxWidth: '600px', margin: '0 auto' }} className="anim-fade">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #334155', paddingBottom: '12px' }}>
               <div>
                 <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#38bdf8', margin: 0 }}>DOCEXPRESS Admin</h1>
@@ -294,7 +241,6 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Liste */}
             {loading ? (
               <p style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px' }}>Chargement des commandes...</p>
             ) : orders.length === 0 ? (
@@ -310,7 +256,7 @@ export default function AdminPage() {
                     <div
                       key={order.id}
                       onClick={() => setSelectedOrder(order)}
-                      className="order-card animate-fade-in"
+                      className="admin-card anim-fade"
                       style={{
                         backgroundColor: '#1e293b',
                         borderRadius: '12px',
@@ -318,7 +264,7 @@ export default function AdminPage() {
                         border: '1px solid #334155',
                         cursor: 'pointer',
                         display: 'flex',
-                        justify: 'space-between',
+                        justifyContent: 'space-between',
                         alignItems: 'center'
                       }}
                     >
