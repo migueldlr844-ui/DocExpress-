@@ -1395,73 +1395,55 @@ export default function Home() {
   // ============================================================
 
   useEffect(() => {
-  if (step !== 'pending' || !currentOrder?.id) return;
+    let interval: NodeJS.Timeout;
 
-  let isMounted = true;
+    if (
+      step === 'pending' &&
+      currentOrder
+    ) {
+      interval = setInterval(
+        async () => {
+          try {
+            const { data } =
+              await supabase
+                .from('orders')
+                .select('*')
+                .eq(
+                  'id',
+                  currentOrder.id
+                )
+                .single();
 
-  const checkPaymentStatus = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('id', currentOrder.id)
-        .single();
+            if (
+              data &&
+              data.status ===
+                'completed'
+            ) {
+              setCurrentOrder(
+                prev =>
+                  prev
+                    ? {
+                        ...prev,
+                        status:
+                          'APPROVED'
+                      }
+                    : null
+              );
 
-      if (error) {
-        console.error('Erreur vérification commande:', error);
-        return;
-      }
-
-      if (!isMounted || !data) return;
-
-      if (data.status === 'completed') {
-        const approvedOrder: Order = {
-          id: data.id,
-          docTitle: data.doc_title || currentOrder.docTitle,
-          price: `${data.amount || 0} FCFA`,
-          clientPhone: data.customer_phone || currentOrder.clientPhone,
-          senderPhone: data.sender_phone || currentOrder.senderPhone,
-          transactionRef:
-            data.transaction_ref || currentOrder.transactionRef,
-          status: 'APPROVED',
-          createdAt: data.created_at
-            ? new Date(data.created_at).toLocaleString('fr-FR')
-            : currentOrder.createdAt,
-          formData: data.form_data || currentOrder.formData,
-          generatedBody:
-            data.generated_body || currentOrder.generatedBody
-        };
-
-        setCurrentOrder(approvedOrder);
-
-        // Très important :
-        // on récupère aussi le document généré depuis Supabase
-        setGeneratedBody(approvedOrder.generatedBody);
-
-        // Le client passe automatiquement à l'écran de téléchargement
-        setStep('success');
-      }
-
-    } catch (error) {
-      console.error('Erreur polling paiement:', error);
+              setStep('success');
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        },
+        3000
+      );
     }
-  };
 
-  // Vérification immédiate
-  checkPaymentStatus();
+    return () =>
+      clearInterval(interval);
+  }, [step, currentOrder]);
 
-  // Puis toutes les 3 secondes
-  const interval = window.setInterval(
-    checkPaymentStatus,
-    3000
-  );
-
-  return () => {
-    isMounted = false;
-    window.clearInterval(interval);
-  };
-
-}, [step, currentOrder?.id]);
   // ============================================================
   // SÉLECTION DOCUMENT
   // ============================================================
@@ -3766,234 +3748,33 @@ export default function Home() {
   // PDF
   // ============================================================
 
-  const generatePDF = async () => {
-  if (!generatedBody && !currentOrder?.generatedBody) {
-    alert("Le document n'est pas encore disponible.");
-    return;
-  }
+  const generatePDF =
+    async () => {
+      if (
+        !documentRef.current
+      )
+        return;
 
-  setIsGeneratingPDF(true);
-
-  let temporaryContainer: HTMLDivElement | null = null;
-
-  try {
-    let element = documentRef.current;
-
-    /*
-     * Si le document n'est pas actuellement affiché dans le DOM,
-     * on le recrée temporairement à partir du contenu enregistré
-     * dans generatedBody.
-     */
-    if (!element) {
-      temporaryContainer = document.createElement('div');
-
-      temporaryContainer.style.position = 'fixed';
-      temporaryContainer.style.left = '-10000px';
-      temporaryContainer.style.top = '0';
-      temporaryContainer.style.width = '794px';
-      temporaryContainer.style.backgroundColor = '#ffffff';
-      temporaryContainer.style.padding = '40px';
-      temporaryContainer.style.boxSizing = 'border-box';
-
-      temporaryContainer.innerHTML =
-        generatedBody ||
-        currentOrder?.generatedBody ||
-        '';
-
-      document.body.appendChild(
-        temporaryContainer
+      setIsGeneratingPDF(
+        true
       );
 
-      element = temporaryContainer;
-    }
+      try {
+        const element =
+          documentRef.current;
 
-    // Laisse le navigateur terminer le rendu
-    await new Promise(resolve =>
-      setTimeout(resolve, 300)
-    );
+        const canvas =
+          await html2canvas(
+            element,
+            {
+              scale: 2,
+              useCORS: true,
+              backgroundColor:
+                '#ffffff',
+              logging: false
+            }
+          );
 
-    const canvas =
-      await html2canvas(
-        element,
-        {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          logging: false
-        }
-      );
-
-    const pdf =
-      new jsPDF(
-        'p',
-        'mm',
-        'a4'
-      );
-
-    const pageWidth = 210;
-    const pageHeight = 297;
-
-    const margin = 10;
-
-    const contentWidth =
-      pageWidth - margin * 2;
-
-    const contentHeight =
-      pageHeight - margin * 2;
-
-    /*
-     * Conversion pixels → millimètres
-     */
-    const pxPerMm =
-      canvas.width /
-      contentWidth;
-
-    const pageHeightPx =
-      Math.floor(
-        contentHeight *
-        pxPerMm
-      );
-
-    let offsetY = 0;
-    let pageNumber = 0;
-
-    /*
-     * Découpe le document en plusieurs pages A4
-     * si nécessaire.
-     */
-    while (
-      offsetY <
-      canvas.height
-    ) {
-      const remainingHeight =
-        canvas.height -
-        offsetY;
-
-      const sliceHeight =
-        Math.min(
-          pageHeightPx,
-          remainingHeight
-        );
-
-      const pageCanvas =
-        document.createElement(
-          'canvas'
-        );
-
-      pageCanvas.width =
-        canvas.width;
-
-      pageCanvas.height =
-        sliceHeight;
-
-      const context =
-        pageCanvas.getContext(
-          '2d'
-        );
-
-      if (!context) {
-        throw new Error(
-          'Impossible de préparer le PDF.'
-        );
-      }
-
-      context.fillStyle =
-        '#ffffff';
-
-      context.fillRect(
-        0,
-        0,
-        pageCanvas.width,
-        pageCanvas.height
-      );
-
-      context.drawImage(
-        canvas,
-        0,
-        offsetY,
-        canvas.width,
-        sliceHeight,
-        0,
-        0,
-        canvas.width,
-        sliceHeight
-      );
-
-      const imageData =
-        pageCanvas.toDataURL(
-          'image/jpeg',
-          0.95
-        );
-
-      const imageHeight =
-        sliceHeight /
-        pxPerMm;
-
-      if (pageNumber > 0) {
-        pdf.addPage();
-      }
-
-      pdf.addImage(
-        imageData,
-        'JPEG',
-        margin,
-        margin,
-        contentWidth,
-        imageHeight
-      );
-
-      offsetY +=
-        sliceHeight;
-
-      pageNumber++;
-    }
-
-    const documentTitle =
-      selectedDoc?.title ||
-      currentOrder?.docTitle ||
-      'Document';
-
-    const safeFileName =
-      documentTitle
-        .replace(
-          /[^a-zA-Z0-9À-ÿ\s_-]/g,
-          ''
-        )
-        .replace(
-          /\s+/g,
-          '_'
-        );
-
-    pdf.save(
-      `${safeFileName}_DocExpress.pdf`
-    );
-
-  } catch (error) {
-    console.error(
-      'Erreur génération PDF:',
-      error
-    );
-
-    alert(
-      'Impossible de générer le PDF. Veuillez réessayer.'
-    );
-
-  } finally {
-
-    if (
-      temporaryContainer &&
-      temporaryContainer.parentNode
-    ) {
-      temporaryContainer.parentNode.removeChild(
-        temporaryContainer
-      );
-    }
-
-    setIsGeneratingPDF(
-      false
-    );
-  }
-};
         const pdf =
           new jsPDF(
             'p',
@@ -4025,74 +3806,146 @@ export default function Home() {
               pxPerMm
           );
 
-            let offsetY = 0;
-    let pageIndex = 0;
+        let offsetY = 0;
+        let pageIndex = 0;
 
-    while (offsetY < canvas.height) {
-      const sliceHeight = Math.min(
-        pageCanvasHeight,
-        canvas.height - offsetY
-      );
+        while (
+          offsetY <
+          canvas.height
+        ) {
+          const sliceHeight =
+            Math.min(
+              pageCanvasHeight,
+              canvas.height -
+                offsetY
+            );
 
-      const pageCanvas = document.createElement('canvas');
+          const pageCanvas =
+            document.createElement(
+              'canvas'
+            );
 
-      pageCanvas.width = canvas.width;
-      pageCanvas.height = sliceHeight;
+          pageCanvas.width =
+            canvas.width;
 
-      const pageCtx = pageCanvas.getContext('2d');
-      if (pageCtx) {
-        pageCtx.drawImage(
-          canvas,
-          0,
-          offsetY,
-          canvas.width,
-          sliceHeight,
-          0,
-          0,
-          canvas.width,
-          sliceHeight
-        );
+          pageCanvas.height =
+            sliceHeight;
 
-        const pageImgData = pageCanvas.toDataURL('image/jpeg', 1.0);
+          const ctx =
+            pageCanvas.getContext(
+              '2d'
+            );
 
-        if (pageIndex > 0) {
-          pdf.addPage([pdfWidth, pdfHeight], 'p');
+          if (!ctx) break;
+
+          ctx.fillStyle =
+            '#ffffff';
+
+          ctx.fillRect(
+            0,
+            0,
+            pageCanvas.width,
+            pageCanvas.height
+          );
+
+          ctx.drawImage(
+            canvas,
+            0,
+            offsetY,
+            canvas.width,
+            sliceHeight,
+            0,
+            0,
+            canvas.width,
+            sliceHeight
+          );
+
+          const image =
+            pageCanvas.toDataURL(
+              'image/png',
+              1
+            );
+
+          const imageHeight =
+            sliceHeight /
+            pxPerMm;
+
+          if (pageIndex > 0) {
+            pdf.addPage();
+          }
+
+          pdf.addImage(
+            image,
+            'PNG',
+            marginX,
+            marginY,
+            usableWidth,
+            imageHeight
+          );
+
+          offsetY +=
+            sliceHeight;
+
+          pageIndex++;
         }
 
-        const imgHeightInPdf = (sliceHeight * pdfWidth) / canvas.width;
-        pdf.addImage(pageImgData, 'JPEG', 0, 0, pdfWidth, imgHeightInPdf);
+        const safeTitle =
+          (
+            selectedDoc?.title ||
+            currentOrder?.docTitle ||
+            'Document'
+          )
+            .replace(
+              /[^a-zA-Z0-9À-ÿ -]/g,
+              ''
+            )
+            .replace(
+              /\s+/g,
+              '_'
+            );
+
+        pdf.save(
+          `${safeTitle}_DocExpress.pdf`
+        );
+      } catch (error) {
+        console.error(
+          'Erreur lors du téléchargement :',
+          error
+        );
+
+        alert(
+          'Une erreur est survenue lors de la génération du PDF.'
+        );
+      } finally {
+        setIsGeneratingPDF(
+          false
+        );
       }
-
-      offsetY += sliceHeight;
-      pageIndex++;
-    }
-
-    try {
-      pdf.save(`${safeTitle}_DocExpress.pdf`);
-    } catch (error) {
-      console.error('Erreur lors du téléchargement :', error);
-    } finally {
-      setIsGenerating(false);
-    }
-
+    };
 
   // ============================================================
   // STYLE INPUTS
   // ============================================================
 
-    const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '0.85rem 0.9rem',
-    borderRadius: '10px',
-    border: '1px solid #3A506B',
-    backgroundColor: '#0B132B',
-    color: '#FFFFFF',
-    boxSizing: 'border-box',
-    fontFamily: 'inherit',
-    outline: 'none',
-    transition: 'border-color .2s ease, box-shadow .2s ease',
-  };
-
+  const inputStyle: React.CSSProperties =
+    {
+      width: '100%',
+      padding:
+        '0.85rem 0.9rem',
+      borderRadius: '10px',
+      border:
+        '1px solid #3A506B',
+      backgroundColor:
+        '#0B132B',
+      color: '#FFFFFF',
+      boxSizing:
+        'border-box',
+      fontFamily:
+        'inherit',
+      outline: 'none',
+      transition:
+        'border-color .2s ease, box-shadow .2s ease'
+    };
 
   // ============================================================
   // RENDER
