@@ -4025,120 +4025,56 @@ export default function Home() {
               pxPerMm
           );
 
-        let offsetY = 0;
-        let pageIndex = 0;
+            let offsetY = 0;
+    let pageIndex = 0;
 
-        while (
-          offsetY <
-          canvas.height
-        ) {
-          const sliceHeight =
-            Math.min(
-              pageCanvasHeight,
-              canvas.height -
-                offsetY
-            );
+    while (offsetY < canvas.height) {
+      const sliceHeight = Math.min(
+        pageCanvasHeight,
+        canvas.height - offsetY
+      );
 
-          const pageCanvas = document.createElement('canvas');
+      const pageCanvas = document.createElement('canvas');
 
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceHeight;
 
-          pageCanvas.width =
-            canvas.width;
+      const pageCtx = pageCanvas.getContext('2d');
+      if (pageCtx) {
+        pageCtx.drawImage(
+          canvas,
+          0,
+          offsetY,
+          canvas.width,
+          sliceHeight,
+          0,
+          0,
+          canvas.width,
+          sliceHeight
+        );
 
-          pageCanvas.height =
-            sliceHeight;
+        const pageImgData = pageCanvas.toDataURL('image/jpeg', 1.0);
 
-          const ctx =
-            pageCanvas.getContext(
-              '2d'
-            );
-
-          if (!ctx) break;
-
-          ctx.fillStyle =
-            '#ffffff';
-
-          ctx.fillRect(
-            0,
-            0,
-            pageCanvas.width,
-            pageCanvas.height
-          );
-
-          ctx.drawImage(
-            canvas,
-            0,
-            offsetY,
-            canvas.width,
-            sliceHeight,
-            0,
-            0,
-            canvas.width,
-            sliceHeight
-          );
-
-          const image =
-            pageCanvas.toDataURL(
-              'image/png',
-              1
-            );
-
-          const imageHeight =
-            sliceHeight /
-            pxPerMm;
-
-          if (pageIndex > 0) {
-            pdf.addPage();
-          }
-
-          pdf.addImage(
-            image,
-            'PNG',
-            marginX,
-            marginY,
-            usableWidth,
-            imageHeight
-          );
-
-          offsetY +=
-            sliceHeight;
-
-          pageIndex++;
+        if (pageIndex > 0) {
+          pdf.addPage([pdfWidth, pdfHeight], 'p');
         }
 
-        const safeTitle =
-          (
-            selectedDoc?.title ||
-            currentOrder?.docTitle ||
-            'Document'
-          )
-            .replace(
-              /[^a-zA-Z0-9À-ÿ -]/g,
-              ''
-            )
-            .replace(
-              /\s+/g,
-              '_'
-            );
-
-        pdf.save(
-          `${safeTitle}_DocExpress.pdf`
-        );
-      } catch (error) {
-        console.error(
-          'Erreur lors du téléchargement :',
-          error
-        );
-
-        alert(
-          'Une erreur est survenue lors de la génération du PDF.'
-        );
-      } finally {
-        setIsGeneratingPDF(
-          false
-        );
+        const imgHeightInPdf = (sliceHeight * pdfWidth) / canvas.width;
+        pdf.addImage(pageImgData, 'JPEG', 0, 0, pdfWidth, imgHeightInPdf);
       }
-    };
+
+      offsetY += sliceHeight;
+      pageIndex++;
+    }
+
+    try {
+      pdf.save(`${safeTitle}_DocExpress.pdf`);
+    } catch (error) {
+      console.error('Erreur lors du téléchargement :', error);
+    } finally {
+      setIsGenerating(false);
+    }
+
 
   // ============================================================
   // STYLE INPUTS
