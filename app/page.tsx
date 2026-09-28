@@ -4146,25 +4146,19 @@ export default function Home() {
   // STYLE INPUTS
   // ============================================================
 
-  const inputStyle: React.CSSProperties =
-    {
-      width: '100%',
-      padding:
-        '0.85rem 0.9rem',
-      borderRadius: '10px',
-      border:
-        '1px solid #3A506B',
-      backgroundColor:
-        '#0B132B',
-      color: '#FFFFFF',
-      boxSizing:
-        'border-box',
-      fontFamily:
-        'inherit',
-      outline: 'none',
-      transition:
-        'border-color .2s ease, box-shadow .2s ease'
-    };
+    const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '0.85rem 0.9rem',
+    borderRadius: '10px',
+    border: '1px solid #3A506B',
+    backgroundColor: '#0B132B',
+    color: '#FFFFFF',
+    boxSizing: 'border-box',
+    fontFamily: 'inherit',
+    outline: 'none',
+    transition: 'border-color .2s ease, box-shadow .2s ease',
+  };
+
 
   // ============================================================
   // RENDER
