@@ -3749,373 +3749,90 @@ export default function Home() {
   // ============================================================
 
   const generatePDF = async () => {
-  if (!generatedBody && !currentOrder?.generatedBody) {
-    alert("Le document n'est pas encore disponible.");
+  if (!documentRef.current) {
+    alert("Le document n'est pas disponible.");
     return;
   }
 
   setIsGeneratingPDF(true);
 
-  let temporaryContainer: HTMLDivElement | null = null;
-
   try {
-    let element = documentRef.current;
+    const element = documentRef.current;
 
-    /*
-     * Si le document n'est pas actuellement affiché dans le DOM,
-     * on le recrée temporairement à partir du contenu enregistré
-     * dans generatedBody.
-     */
-    if (!element) {
-      temporaryContainer = document.createElement('div');
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+    });
 
-      temporaryContainer.style.position = 'fixed';
-      temporaryContainer.style.left = '-10000px';
-      temporaryContainer.style.top = '0';
-      temporaryContainer.style.width = '794px';
-      temporaryContainer.style.backgroundColor = '#ffffff';
-      temporaryContainer.style.padding = '40px';
-      temporaryContainer.style.boxSizing = 'border-box';
+    const pdf = new jsPDF("p", "mm", "a4");
 
-      temporaryContainer.innerHTML =
-        generatedBody ||
-        currentOrder?.generatedBody ||
-        '';
-
-      document.body.appendChild(
-        temporaryContainer
-      );
-
-      element = temporaryContainer;
-    }
-
-    // Laisse le navigateur terminer le rendu
-    await new Promise(resolve =>
-      setTimeout(resolve, 300)
-    );
-
-    const canvas =
-      await html2canvas(
-        element,
-        {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          logging: false
-        }
-      );
-
-    const pdf =
-      new jsPDF(
-        'p',
-        'mm',
-        'a4'
-      );
+    const imgData = canvas.toDataURL("image/png");
 
     const pageWidth = 210;
     const pageHeight = 297;
 
     const margin = 10;
+    const contentWidth = pageWidth - margin * 2;
 
-    const contentWidth =
-      pageWidth - margin * 2;
+    const imageHeight =
+      (canvas.height * contentWidth) / canvas.width;
 
-    const contentHeight =
-      pageHeight - margin * 2;
+    let heightLeft = imageHeight;
+    let position = margin;
 
-    /*
-     * Conversion pixels → millimètres
-     */
-    const pxPerMm =
-      canvas.width /
-      contentWidth;
+    pdf.addImage(
+      imgData,
+      "PNG",
+      margin,
+      position,
+      contentWidth,
+      imageHeight
+    );
 
-    const pageHeightPx =
-      Math.floor(
-        contentHeight *
-        pxPerMm
-      );
+    heightLeft -= pageHeight - margin * 2;
 
-    let offsetY = 0;
-    let pageNumber = 0;
+    while (heightLeft > 0) {
+      position = margin - (imageHeight - heightLeft);
 
-    /*
-     * Découpe le document en plusieurs pages A4
-     * si nécessaire.
-     */
-    while (
-      offsetY <
-      canvas.height
-    ) {
-      const remainingHeight =
-        canvas.height -
-        offsetY;
-
-      const sliceHeight =
-        Math.min(
-          pageHeightPx,
-          remainingHeight
-        );
-
-      const pageCanvas =
-        document.createElement(
-          'canvas'
-        );
-
-      pageCanvas.width =
-        canvas.width;
-
-      pageCanvas.height =
-        sliceHeight;
-
-      const context =
-        pageCanvas.getContext(
-          '2d'
-        );
-
-      if (!context) {
-        throw new Error(
-          'Impossible de préparer le PDF.'
-        );
-      }
-
-      context.fillStyle =
-        '#ffffff';
-
-      context.fillRect(
-        0,
-        0,
-        pageCanvas.width,
-        pageCanvas.height
-      );
-
-      context.drawImage(
-        canvas,
-        0,
-        offsetY,
-        canvas.width,
-        sliceHeight,
-        0,
-        0,
-        canvas.width,
-        sliceHeight
-      );
-
-      const imageData =
-        pageCanvas.toDataURL(
-          'image/jpeg',
-          0.95
-        );
-
-      const imageHeight =
-        sliceHeight /
-        pxPerMm;
-
-      if (pageNumber > 0) {
-        pdf.addPage();
-      }
+      pdf.addPage();
 
       pdf.addImage(
-        imageData,
-        'JPEG',
+        imgData,
+        "PNG",
         margin,
-        margin,
+        position,
         contentWidth,
         imageHeight
       );
 
-      offsetY +=
-        sliceHeight;
-
-      pageNumber++;
+      heightLeft -= pageHeight - margin * 2;
     }
 
-    const documentTitle =
+    const safeTitle = (
       selectedDoc?.title ||
       currentOrder?.docTitle ||
-      'Document';
+      "Document"
+    )
+      .replace(/[^a-zA-Z0-9À-ÿ\s_-]/g, "")
+      .replace(/\s+/g, "_");
 
-    const safeFileName =
-      documentTitle
-        .replace(
-          /[^a-zA-Z0-9À-ÿ\s_-]/g,
-          ''
-        )
-        .replace(
-          /\s+/g,
-          '_'
-        );
-
-    pdf.save(
-      `${safeFileName}_DocExpress.pdf`
-    );
+    pdf.save(`${safeTitle}_DocExpress.pdf`);
 
   } catch (error) {
-    console.error(
-      'Erreur génération PDF:',
-      error
-    );
+    console.error("Erreur lors du téléchargement du PDF :", error);
 
     alert(
-      'Impossible de générer le PDF. Veuillez réessayer.'
+      "Une erreur est survenue lors de la génération du PDF."
     );
 
   } finally {
-
-    if (
-      temporaryContainer &&
-      temporaryContainer.parentNode
-    ) {
-      temporaryContainer.parentNode.removeChild(
-        temporaryContainer
-      );
-    }
-
-    setIsGeneratingPDF(
-      false
-    );
+    setIsGeneratingPDF(false);
   }
 };
 
-        const pdf =
-          new jsPDF(
-            'p',
-            'mm',
-            'a4'
-          );
-
-        const pageWidth = 210;
-        const pageHeight = 297;
-
-        const marginX = 8;
-        const marginY = 8;
-
-        const usableWidth =
-          pageWidth -
-          marginX * 2;
-
-        const usableHeight =
-          pageHeight -
-          marginY * 2;
-
-        const pxPerMm =
-          canvas.width /
-          usableWidth;
-
-        const pageCanvasHeight =
-          Math.floor(
-            usableHeight *
-              pxPerMm
-          );
-
-        let offsetY = 0;
-        let pageIndex = 0;
-
-        while (
-          offsetY <
-          canvas.height
-        ) {
-          const sliceHeight =
-            Math.min(
-              pageCanvasHeight,
-              canvas.height -
-                offsetY
-            );
-
-          const pageCanvas =
-            document.createElement(
-              'canvas'
-            );
-
-          pageCanvas.width =
-            canvas.width;
-
-          pageCanvas.height =
-            sliceHeight;
-
-          const ctx =
-            pageCanvas.getContext(
-              '2d'
-            );
-
-          if (!ctx) break;
-
-          ctx.fillStyle =
-            '#ffffff';
-
-          ctx.fillRect(
-            0,
-            0,
-            pageCanvas.width,
-            pageCanvas.height
-          );
-
-          ctx.drawImage(
-            canvas,
-            0,
-            offsetY,
-            canvas.width,
-            sliceHeight,
-            0,
-            0,
-            canvas.width,
-            sliceHeight
-          );
-
-          const image =
-            pageCanvas.toDataURL(
-              'image/png',
-              1
-            );
-
-          const imageHeight =
-            sliceHeight /
-            pxPerMm;
-
-          if (pageIndex > 0) {
-            pdf.addPage();
-          }
-
-          pdf.addImage(
-            image,
-            'PNG',
-            marginX,
-            marginY,
-            usableWidth,
-            imageHeight
-          );
-
-          offsetY +=
-            sliceHeight;
-
-          pageIndex++;
-        }
-
-        const safeTitle =
-          (
-            selectedDoc?.title ||
-            currentOrder?.docTitle ||
-            'Document'
-          )
-            .replace(
-              /[^a-zA-Z0-9À-ÿ -]/g,
-              ''
-            )
-            .replace(
-              /\s+/g,
-              '_'
-            );
-
-            pdf.save(`${safeTitle}_DocExpress.pdf`);
-  } catch (error) {
-    console.error('Erreur lors du téléchargement :', error);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-
-  // ============================================================
+//===========================================
   // STYLE INPUTS
   // ============================================================
 
