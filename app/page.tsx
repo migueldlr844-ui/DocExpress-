@@ -3748,129 +3748,205 @@ export default function Home() {
   // PDF
   // ============================================================
 
-  const generatePDF = async () => {
-  if (!generatedBody && !currentOrder?.generatedBody) {
-    alert("Le document n'est pas disponible.");
-    return;
-  }
+  const generatePDF =
+    async () => {
+      if (
+        !documentRef.current
+      )
+        return;
 
-  setIsGeneratingPDF(true);
-
-  let temporaryElement: HTMLDivElement | null = null;
-
-  try {
-    let element = documentRef.current;
-
-    // Après validation du paiement, documentRef n'existe plus.
-    // On recrée donc temporairement le document à partir
-    // du contenu enregistré dans la commande.
-    if (!element) {
-      temporaryElement = document.createElement('div');
-
-      temporaryElement.style.position = 'fixed';
-      temporaryElement.style.left = '-10000px';
-      temporaryElement.style.top = '0';
-      temporaryElement.style.width = '794px';
-      temporaryElement.style.backgroundColor = '#ffffff';
-      temporaryElement.style.color = '#000000';
-      temporaryElement.style.padding = '40px';
-      temporaryElement.style.boxSizing = 'border-box';
-
-      temporaryElement.innerHTML =
-        currentOrder?.generatedBody ||
-        generatedBody ||
-        '';
-
-      document.body.appendChild(temporaryElement);
-
-      element = temporaryElement;
-
-      // Laisser le navigateur afficher le contenu
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
-
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false
-    });
-
-    const imgData = canvas.toDataURL('image/png');
-
-    const pdf = new jsPDF('p', 'mm', 'a4');
-
-    const imgWidth = 190;
-    const imgHeight =
-      (canvas.height * imgWidth) / canvas.width;
-
-    let heightLeft = imgHeight;
-    let position = 10;
-
-    pdf.addImage(
-      imgData,
-      'PNG',
-      10,
-      position,
-      imgWidth,
-      imgHeight
-    );
-
-    heightLeft -= 277;
-
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight + 10;
-
-      pdf.addPage();
-
-      pdf.addImage(
-        imgData,
-        'PNG',
-        10,
-        position,
-        imgWidth,
-        imgHeight
+      setIsGeneratingPDF(
+        true
       );
 
-      heightLeft -= 277;
-    }
+      try {
+        const element =
+          documentRef.current;
 
-    const title =
-      selectedDoc?.title ||
-      currentOrder?.docTitle ||
-      'Document';
+        const canvas =
+          await html2canvas(
+            element,
+            {
+              scale: 2,
+              useCORS: true,
+              backgroundColor:
+                '#ffffff',
+              logging: false
+            }
+          );
 
-    const safeTitle = title
-      .replace(/[^a-zA-Z0-9À-ÿ\s_-]/g, '')
-      .replace(/\s+/g, '_');
+        const pdf =
+          new jsPDF(
+            'p',
+            'mm',
+            'a4'
+          );
 
-    pdf.save(
-      `${safeTitle}_DocExpress.pdf`
-    );
+        const pageWidth = 210;
+        const pageHeight = 297;
 
-  } catch (error) {
-    console.error(
-      'Erreur lors du téléchargement :',
-      error
-    );
+        const marginX = 8;
+        const marginY = 8;
 
-    alert(
-      "Impossible de générer le PDF. Veuillez réessayer."
-    );
+        const usableWidth =
+          pageWidth -
+          marginX * 2;
 
-  } finally {
-    if (
-      temporaryElement &&
-      temporaryElement.parentNode
-    ) {
-      temporaryElement.parentNode.removeChild(
-        temporaryElement
-      );
-    }
+        const usableHeight =
+          pageHeight -
+          marginY * 2;
 
-    setIsGeneratingPDF(false);
-  }
-};
+        const pxPerMm =
+          canvas.width /
+          usableWidth;
+
+        const pageCanvasHeight =
+          Math.floor(
+            usableHeight *
+              pxPerMm
+          );
+
+        let offsetY = 0;
+        let pageIndex = 0;
+
+        while (
+          offsetY <
+          canvas.height
+        ) {
+          const sliceHeight =
+            Math.min(
+              pageCanvasHeight,
+              canvas.height -
+                offsetY
+            );
+
+          const pageCanvas =
+            document.createElement(
+              'canvas'
+            );
+
+          pageCanvas.width =
+            canvas.width;
+
+          pageCanvas.height =
+            sliceHeight;
+
+          const ctx =
+            pageCanvas.getContext(
+              '2d'
+            );
+
+          if (!ctx) break;
+
+          ctx.fillStyle =
+            '#ffffff';
+
+          ctx.fillRect(
+            0,
+            0,
+            pageCanvas.width,
+            pageCanvas.height
+          );
+
+          ctx.drawImage(
+            canvas,
+            0,
+            offsetY,
+            canvas.width,
+            sliceHeight,
+            0,
+            0,
+            canvas.width,
+            sliceHeight
+          );
+
+          const image =
+            pageCanvas.toDataURL(
+              'image/png',
+              1
+            );
+
+          const imageHeight =
+            sliceHeight /
+            pxPerMm;
+
+          if (pageIndex > 0) {
+            pdf.addPage();
+          }
+
+          pdf.addImage(
+            image,
+            'PNG',
+            marginX,
+            marginY,
+            usableWidth,
+            imageHeight
+          );
+
+          offsetY +=
+            sliceHeight;
+
+          pageIndex++;
+        }
+
+        const safeTitle =
+          (
+            selectedDoc?.title ||
+            currentOrder?.docTitle ||
+            'Document'
+          )
+            .replace(
+              /[^a-zA-Z0-9À-ÿ -]/g,
+              ''
+            )
+            .replace(
+              /\s+/g,
+              '_'
+            );
+
+        pdf.save(
+          `${safeTitle}_DocExpress.pdf`
+        );
+      } catch (error) {
+        console.error(
+          'Erreur lors du téléchargement :',
+          error
+        );
+
+        alert(
+          'Une erreur est survenue lors de la génération du PDF.'
+        );
+      } finally {
+        setIsGeneratingPDF(
+          false
+        );
+      }
+    };
+
+  // ============================================================
+  // STYLE INPUTS
+  // ============================================================
+
+  const inputStyle: React.CSSProperties =
+    {
+      width: '100%',
+      padding:
+        '0.85rem 0.9rem',
+      borderRadius: '10px',
+      border:
+        '1px solid #3A506B',
+      backgroundColor:
+        '#0B132B',
+      color: '#FFFFFF',
+      boxSizing:
+        'border-box',
+      fontFamily:
+        'inherit',
+      outline: 'none',
+      transition:
+        'border-color .2s ease, box-shadow .2s ease'
+    };
+
   // ============================================================
   // RENDER
   // ============================================================
