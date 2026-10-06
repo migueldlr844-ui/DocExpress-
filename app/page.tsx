@@ -5566,127 +5566,243 @@ useEffect(() => {
               PREVIEW
           ================================================== */}
 
-          {step ===
-            'preview' &&
-            selectedDoc && (
-              <div>
-
-                <div
-                  style={{
-                    backgroundColor:
-                      '#1C2541',
-                    border:
-                      '1px solid #3A506B',
-                    borderRadius:
-                      '12px',
-                    padding:
-                      '1rem',
-                    marginBottom:
-                      '1.5rem'
-                  }}
-                >
-
-                  <h2
-                    style={{
-                      fontSize:
-                        '1.1rem',
-                      margin:
-                        '0 0 .5rem'
-                    }}
-                  >
-                    📄 Aperçu de votre document
-                  </h2>
-
-                  <p
-                    style={{
-                      fontSize:
-                        '.8rem',
-                      color:
-                        '#9CA3AF',
-                      margin:
-                        0,
-                      lineHeight:
-                        '1.5'
-                    }}
-                  >
-                    Voici le rendu professionnel
-                    de votre document. Vérifiez les
-                    informations avant le paiement.
-                  </p>
-
-                </div>
-
-                <div
-                  ref={
-                    documentRef
+        {step ===
+  'preview' &&
+  selectedDoc && (
+    <div>
+      <div
+        style={{
+          backgroundColor:
+            '#1C2541',
+          border:
+            '1px solid #3A506B',
+          borderRadius:
+            '12px',
+          padding:
+            '1rem',
+          marginBottom:
+            '1.5rem'
+        }}
+      >
+        <h2
+          style={{
+            fontSize:
+              '1.1rem',
+            margin:
+              '0 0 .5rem'
+          }}
+        >
+          📄 Aperçu de votre document
+        </h2>
+        <p
+          style={{
+            fontSize:
+              '.8rem',
+            color:
+              '#9CA3AF',
+            margin:
+              0,
+            lineHeight:
+              '1.5'
+          }}
+        >
+          Voici le rendu professionnel
+          de votre document. Vérifiez les
+          informations avant le paiement.
+        </p>
+      </div>
+      {/* DOCUMENT + PROTECTION */}
+      <div
+        ref={documentRef}
+        className="document-preview"
+        style={{
+          backgroundColor:
+            '#FFFFFF',
+          color:
+            '#111827',
+          padding:
+            '2.2rem',
+          borderRadius:
+            '4px',
+          boxShadow:
+            '0 15px 40px rgba(0,0,0,.45)',
+          marginBottom:
+            '1.5rem',
+          minHeight:
+            '500px',
+          overflow:
+            'hidden',
+          position:
+            'relative',
+          userSelect:
+            'none',
+          WebkitUserSelect:
+            'none'
+        }}
+      >
+        {/* CONTENU DU DOCUMENT */}
+        <div
+          dangerouslySetInnerHTML={{
+            __html:
+              generatedBody
+          }}
+        />
+        {/* FILIGRANE DE PROTECTION */}
+        <div
+          aria-hidden="true"
+          style={{
+            position:
+              'absolute',
+            inset:
+              0,
+            zIndex:
+              20,
+            pointerEvents:
+              'none',
+            overflow:
+              'hidden'
+          }}
+        >
+          {/* FILIGRANES DIAGONAUX */}
+          <div
+            style={{
+              position:
+                'absolute',
+              top:
+                '-15%',
+              left:
+                '-20%',
+              width:
+                '145%',
+              height:
+                '130%',
+              transform:
+                'rotate(-28deg)',
+              display:
+                'flex',
+              flexWrap:
+                'wrap',
+              alignContent:
+                'space-around',
+              justifyContent:
+                'space-around',
+              gap:
+                '1.5rem',
+              opacity:
+                0.16
+            }}
+          >
+            {Array.from(
+              { length: 35 }
+            ).map(
+              (_, index) => (
+                <span
+                  key={
+                    index
                   }
-                  className="document-preview"
                   style={{
-                    backgroundColor:
-                      '#FFFFFF',
-                    color:
-                      '#111827',
-                    padding:
-                      '2.2rem',
-                    borderRadius:
-                      '4px',
-                    boxShadow:
-                      '0 15px 40px rgba(0,0,0,.45)',
-                    marginBottom:
-                      '1.5rem',
-                    minHeight:
-                      '500px',
-                    overflow:
-                      'hidden'
-                  }}
-                >
-
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html:
-                        generatedBody
-                    }}
-                  />
-
-                </div>
-
-                <button
-                  onClick={() =>
-                    setStep(
-                      'payment'
-                    )
-                  }
-                  className="primary-action payment-action"
-                  style={{
-                    width:
-                      '100%',
-                    padding:
-                      '1rem',
-                    borderRadius:
-                      '10px',
-                    border:
-                      'none',
-                    backgroundColor:
-                      '#F72585',
-                    color:
-                      '#FFFFFF',
-                    fontWeight:
-                      'bold',
                     fontSize:
-                      '1.05rem',
-                    cursor:
-                      'pointer'
+                      '1.15rem',
+                    fontWeight:
+                      800,
+                    letterSpacing:
+                      '2px',
+                    color:
+                      '#64748B',
+                    whiteSpace:
+                      'nowrap',
+                    textTransform:
+                      'uppercase'
                   }}
                 >
-                  Payer{' '}
-                  {
-                    selectedDoc.price
-                  }{' '}
-                  & Télécharger PDF ➔
-                </button>
-
-              </div>
+                  DOCEXPRESS • APERÇU • NON VALABLE
+                </span>
+              )
             )}
+          </div>
+          {/* MARQUAGE CENTRAL */}
+          <div
+            style={{
+              position:
+                'absolute',
+              top:
+                '50%',
+              left:
+                '50%',
+              transform:
+                'translate(-50%, -50%) rotate(-28deg)',
+              width:
+                '85%',
+              textAlign:
+                'center',
+              fontSize:
+                'clamp(1.5rem, 6vw, 3.5rem)',
+              fontWeight:
+                900,
+              letterSpacing:
+                '4px',
+              color:
+                'rgba(220,38,38,.18)',
+              textTransform:
+                'uppercase',
+              whiteSpace:
+                'nowrap'
+            }}
+          >
+            APERÇU — NON VALABLE
+          </div>
+          {/* BORDURE DE PROTECTION */}
+          <div
+            style={{
+              position:
+                'absolute',
+              inset:
+                '12px',
+              border:
+                '2px solid rgba(220,38,38,.14)',
+              borderRadius:
+                '3px'
+            }}
+          />
+        </div>
+      </div>
+      {/* BOUTON PAIEMENT */}
+      <button
+        onClick={() =>
+          setStep(
+            'payment'
+          )
+        }
+        className="primary-action payment-action"
+        style={{
+          width:
+            '100%',
+          padding:
+            '1rem',
+          borderRadius:
+            '10px',
+          border:
+            'none',
+          backgroundColor:
+            '#F72585',
+          color:
+            '#FFFFFF',
+          fontWeight:
+            'bold',
+          fontSize:
+            '1.05rem',
+          cursor:
+            'pointer'
+        }}
+      >
+        Payer{' '}
+        {
+          selectedDoc.price
+        }{' '}
+        & Télécharger PDF ➔
+      </button>
+    </div>
+  )}
 
           {/* ==================================================
               PAYMENT
