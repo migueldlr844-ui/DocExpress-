@@ -5808,241 +5808,334 @@ useEffect(() => {
               PAYMENT
           ================================================== */}
 
-          {step ===
-            'payment' &&
-            selectedDoc && (
-              <div
-                className="step-card"
-                style={{
-                  backgroundColor:
-                    '#1C2541',
-                  border:
-                    '1px solid #3A506B',
-                  borderRadius:
-                    '12px',
-                  padding:
-                    '1.5rem'
-                }}
-              >
-
-                <h2
-                  style={{
-                    fontSize:
-                      '1.3rem',
-                    marginBottom:
-                      '.5rem'
-                  }}
-                >
-                  💳 Paiement Mobile Money
-                </h2>
-
-                <p
-                  style={{
-                    fontSize:
-                      '.85rem',
-                    color:
-                      '#9CA3AF',
-                    marginBottom:
-                      '1.5rem'
-                  }}
-                >
-                  Montant à régler :
-                  {' '}
-                  <strong
-                    style={{
-                      color:
-                        '#4CC9F0',
-                      fontSize:
-                        '1.1rem'
-                    }}
-                  >
-                    {
-                      selectedDoc.price
-                    }
-                  </strong>
-                </p>
-
-                <div
-                  style={{
-                    backgroundColor:
-                      '#0B132B',
-                    border:
-                      '1px solid #3A506B',
-                    borderRadius:
-                      '8px',
-                    padding:
-                      '1rem',
-                    marginBottom:
-                      '1.5rem'
-                  }}
-                >
-
-                  <h3
-                    style={{
-                      fontSize:
-                        '.95rem',
-                      color:
-                        '#4CC9F0',
-                      marginTop:
-                        0
-                    }}
-                  >
-                    Consignes de paiement :
-                  </h3>
-
-                  <ol
-                    style={{
-                      fontSize:
-                        '.85rem',
-                      color:
-                        '#D1D5DB',
-                      paddingLeft:
-                        '1.2rem',
-                      margin:
-                        0,
-                      lineHeight:
-                        '1.7'
-                    }}
-                  >
-                    <li>
-                      Effectuez un transfert
-                      Orange Money ou MTN Mobile
-                      Money au :
-                      {' '}
-                      <strong>
-                        6XX XX XX XX
-                      </strong>.
-                    </li>
-
-                    <li>
-                      Inscrivez ci-dessous le
-                      numéro utilisé et le TxID /
-                      Référence reçu par SMS.
-                    </li>
-
-                    <li>
-                      Cliquez sur
-                      « Valider le paiement ».
-                    </li>
-                  </ol>
-
-                </div>
-
-                <div
-                  style={{
-                    display:
-                      'flex',
-                    flexDirection:
-                      'column',
-                    gap:
-                      '1rem',
-                    marginBottom:
-                      '1.5rem'
-                  }}
-                >
-
-                  <div>
-                    <label
-                      style={{
-                        display:
-                          'block',
-                        fontSize:
-                          '.85rem',
-                        marginBottom:
-                          '.3rem'
-                      }}
-                    >
-                      Votre numéro de téléphone
-                      (Expéditeur)
-                    </label>
-
-                    <input
-                      type="text"
-                      placeholder="Ex: 699000000"
-                      value={
-                        senderPhoneInput
-                      }
-                      onChange={e =>
-                        setSenderPhoneInput(
-                          e.target.value
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      style={{
-                        display:
-                          'block',
-                        fontSize:
-                          '.85rem',
-                        marginBottom:
-                          '.3rem'
-                      }}
-                    >
-                      Référence de la transaction
-                      (TxID SMS)
-                    </label>
-
-                    <input
-                      type="text"
-                      placeholder="Ex: MP260926.1124.A12345"
-                      value={
-                        transactionRefInput
-                      }
-                      onChange={e =>
-                        setTransactionRefInput(
-                          e.target.value
-                        )
-                      }
-                      style={
-                        inputStyle
-                      }
-                    />
-                  </div>
-
-                </div>
-
-                <button
-                  onClick={
-                    handleInitiatePayment
-                  }
-                  disabled={
-                    isSubmittingPayment
-                  }
-                  className="primary-action"
-                  style={{
-                    width:
-                      '100%',
-                    padding:
-                      '.9rem',
-                    borderRadius:
-                      '8px',
-                    border:
-                      'none',
-                    backgroundColor:
-                      '#4CC9F0',
-                    color:
-                      '#0B132B',
-                    fontWeight:
-                      'bold',
-                    fontSize:
-                      '1rem',
-                    cursor:
-                      'pointer'
-                  }}
-                >
-                  {isSubmittingPayment
-                    ? 'Enregistrement...'
-                    : 'Valider le paiement ➔'}
-                </button>
-
-              </div>
-            )}
+        {step ===
+  'payment' &&
+  selectedDoc && (
+    <div
+      className="step-card"
+      style={{
+        backgroundColor:
+          '#1C2541',
+        border:
+          '1px solid #3A506B',
+        borderRadius:
+          '12px',
+        padding:
+          '1.5rem'
+      }}
+    >
+      <h2
+        style={{
+          fontSize:
+            '1.3rem',
+          marginBottom:
+            '.5rem'
+        }}
+      >
+        💳 Paiement Mobile Money
+      </h2>
+      <p
+        style={{
+          fontSize:
+            '.85rem',
+          color:
+            '#9CA3AF',
+          marginBottom:
+            '1.5rem'
+        }}
+      >
+        Montant à régler :
+        {' '}
+        <strong
+          style={{
+            color:
+              '#4CC9F0',
+            fontSize:
+              '1.1rem'
+          }}
+        >
+          {
+            selectedDoc.price
+          }
+        </strong>
+      </p>
+      {/* INFORMATIONS DU COMPTE DE PAIEMENT */}
+      <div
+        style={{
+          backgroundColor:
+            '#0B132B',
+          border:
+            '1px solid #4CC9F0',
+          borderRadius:
+            '10px',
+          padding:
+            '1.2rem',
+          marginBottom:
+            '1.5rem'
+        }}
+      >
+        <div
+          style={{
+            fontSize:
+              '.72rem',
+            color:
+              '#4CC9F0',
+            fontWeight:
+              700,
+            textTransform:
+              'uppercase',
+            letterSpacing:
+              '1px',
+            marginBottom:
+              '.8rem'
+          }}
+        >
+          Effectuez votre dépôt
+        </div>
+        <div
+          style={{
+            marginBottom:
+              '.8rem'
+          }}
+        >
+          <div
+            style={{
+              fontSize:
+                '.75rem',
+              color:
+                '#9CA3AF',
+              marginBottom:
+                '.2rem'
+            }}
+          >
+            Numéro de paiement
+          </div>
+          <div
+            style={{
+              fontSize:
+                '1.45rem',
+              fontWeight:
+                800,
+              color:
+                '#FFFFFF',
+              letterSpacing:
+                '1px'
+            }}
+          >
+            655 069 396
+          </div>
+        </div>
+        <div>
+          <div
+            style={{
+              fontSize:
+                '.75rem',
+              color:
+                '#9CA3AF',
+              marginBottom:
+                '.2rem'
+            }}
+          >
+            Nom du compte
+          </div>
+          <div
+            style={{
+              fontSize:
+                '1rem',
+              fontWeight:
+                700,
+              color:
+                '#FFFFFF'
+            }}
+          >
+            ATATNGANA ATANGANA DESIRE
+          </div>
+        </div>
+      </div>
+      {/* CONSIGNES */}
+      <div
+        style={{
+          backgroundColor:
+            '#111B32',
+          border:
+            '1px solid #263653',
+          borderRadius:
+            '8px',
+          padding:
+            '1rem',
+          marginBottom:
+            '1.5rem'
+        }}
+      >
+        <h3
+          style={{
+            fontSize:
+              '.95rem',
+            color:
+              '#4CC9F0',
+            marginTop:
+              0,
+            marginBottom:
+              '.7rem'
+          }}
+        >
+          Comment effectuer le paiement
+        </h3>
+        <ol
+          style={{
+            fontSize:
+              '.85rem',
+            color:
+              '#D1D5DB',
+            paddingLeft:
+              '1.2rem',
+            margin:
+              0,
+            lineHeight:
+              '1.7'
+          }}
+        >
+          <li>
+            Effectuez le dépôt du montant
+            indiqué ci-dessus sur le numéro
+            <strong>
+              {' '}655 069 396
+            </strong>.
+          </li>
+          <li>
+            Vérifiez que le nom du bénéficiaire
+            affiché est :
+            <strong>
+              {' '}ATATNGANA ATANGANA DESIRE
+            </strong>.
+          </li>
+          <li>
+            Après le dépôt, renseignez
+            ci-dessous le numéro utilisé pour
+            effectuer le paiement.
+          </li>
+          <li>
+            Saisissez ensuite la référence
+            ou le TxID reçu par SMS.
+          </li>
+          <li>
+            Cliquez sur
+            <strong>
+              {' '}« Valider le paiement »
+            </strong>.
+          </li>
+        </ol>
+      </div>
+      {/* INFORMATIONS DU CLIENT */}
+      <div
+        style={{
+          display:
+            'flex',
+          flexDirection:
+            'column',
+          gap:
+            '1rem',
+          marginBottom:
+            '1.5rem'
+        }}
+      >
+        <div>
+          <label
+            style={{
+              display:
+                'block',
+              fontSize:
+                '.85rem',
+              marginBottom:
+                '.3rem'
+            }}
+          >
+            Votre numéro de téléphone
+            (Expéditeur)
+          </label>
+          <input
+            type="text"
+            placeholder="Ex : 699000000"
+            value={
+              senderPhoneInput
+            }
+            onChange={e =>
+              setSenderPhoneInput(
+                e.target.value
+              )
+            }
+            style={
+              inputStyle
+            }
+          />
+        </div>
+        <div>
+          <label
+            style={{
+              display:
+                'block',
+              fontSize:
+                '.85rem',
+              marginBottom:
+                '.3rem'
+            }}
+          >
+            Référence de la transaction
+            (TxID SMS)
+          </label>
+          <input
+            type="text"
+            placeholder="Ex : MP260926.1124.A12345"
+            value={
+              transactionRefInput
+            }
+            onChange={e =>
+              setTransactionRefInput(
+                e.target.value
+              )
+            }
+            style={
+              inputStyle
+            }
+          />
+        </div>
+      </div>
+      {/* VALIDATION */}
+      <button
+        onClick={
+          handleInitiatePayment
+        }
+        disabled={
+          isSubmittingPayment
+        }
+        className="primary-action"
+        style={{
+          width:
+            '100%',
+          padding:
+            '.9rem',
+          borderRadius:
+            '8px',
+          border:
+            'none',
+          backgroundColor:
+            '#4CC9F0',
+          color:
+            '#0B132B',
+          fontWeight:
+            'bold',
+          fontSize:
+            '1rem',
+          cursor:
+            'pointer'
+        }}
+      >
+        {isSubmittingPayment
+          ? 'Enregistrement...'
+          : 'Valider le paiement ➔'}
+      </button>
+    </div>
+  )}
     
    {/* ==================================================
               PENDING
