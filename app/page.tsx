@@ -3748,180 +3748,180 @@ export default function Home() {
   // PDF
   // ============================================================
 
-  const generatePDF =
-    async () => {
-      if (
-        !documentRef.current
-      )
-        return;
+ const generatePDF = async () => {
+  const sourceHtml =
+    currentOrder?.generatedBody || generatedBody;
 
-      setIsGeneratingPDF(
-        true
+  if (!sourceHtml) {
+    alert(
+      "Le document n’est pas disponible. Veuillez réessayer."
+    );
+    return;
+  }
+
+  if (
+    !currentOrder ||
+    currentOrder.status !== "APPROVED"
+  ) {
+    alert(
+      "Le téléchargement sera disponible après validation de l’administrateur."
+    );
+    return;
+  }
+
+  setIsGeneratingPDF(true);
+
+  let temporaryElement: HTMLDivElement | null = null;
+
+  try {
+    let element = documentRef.current;
+
+    if (!element) {
+      temporaryElement = document.createElement("div");
+
+      temporaryElement.style.position = "fixed";
+      temporaryElement.style.left = "-10000px";
+      temporaryElement.style.top = "0";
+      temporaryElement.style.width = "794px";
+      temporaryElement.style.minHeight = "1123px";
+      temporaryElement.style.backgroundColor = "#ffffff";
+      temporaryElement.style.color = "#000000";
+      temporaryElement.style.boxSizing = "border-box";
+      temporaryElement.style.overflow = "visible";
+      temporaryElement.innerHTML = sourceHtml;
+
+      document.body.appendChild(temporaryElement);
+      element = temporaryElement;
+    }
+
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => resolve());
+      });
+    });
+
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+      logging: false,
+      windowWidth: element.scrollWidth || 794,
+      windowHeight: element.scrollHeight || 1123,
+    });
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const marginX = 8;
+    const marginY = 8;
+    const usableWidth = pageWidth - marginX * 2;
+    const usableHeight = pageHeight - marginY * 2;
+
+    const pxPerMm = canvas.width / usableWidth;
+    const pageCanvasHeight = Math.floor(
+      usableHeight * pxPerMm
+    );
+
+    let offsetY = 0;
+    let pageIndex = 0;
+
+    while (offsetY < canvas.height) {
+      const sliceHeight = Math.min(
+        pageCanvasHeight,
+        canvas.height - offsetY
       );
 
-      try {
-        const element =
-          documentRef.current;
+      const pageCanvas = document.createElement("canvas");
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceHeight;
 
-        const canvas =
-          await html2canvas(
-            element,
-            {
-              scale: 2,
-              useCORS: true,
-              backgroundColor:
-                '#ffffff',
-              logging: false
-            }
-          );
+      const ctx = pageCanvas.getContext("2d");
 
-        const pdf =
-          new jsPDF(
-            'p',
-            'mm',
-            'a4'
-          );
-
-        const pageWidth = 210;
-        const pageHeight = 297;
-
-        const marginX = 8;
-        const marginY = 8;
-
-        const usableWidth =
-          pageWidth -
-          marginX * 2;
-
-        const usableHeight =
-          pageHeight -
-          marginY * 2;
-
-        const pxPerMm =
-          canvas.width /
-          usableWidth;
-
-        const pageCanvasHeight =
-          Math.floor(
-            usableHeight *
-              pxPerMm
-          );
-
-        let offsetY = 0;
-        let pageIndex = 0;
-
-        while (
-          offsetY <
-          canvas.height
-        ) {
-          const sliceHeight =
-            Math.min(
-              pageCanvasHeight,
-              canvas.height -
-                offsetY
-            );
-
-          const pageCanvas =
-            document.createElement(
-              'canvas'
-            );
-
-          pageCanvas.width =
-            canvas.width;
-
-          pageCanvas.height =
-            sliceHeight;
-
-          const ctx =
-            pageCanvas.getContext(
-              '2d'
-            );
-
-          if (!ctx) break;
-
-          ctx.fillStyle =
-            '#ffffff';
-
-          ctx.fillRect(
-            0,
-            0,
-            pageCanvas.width,
-            pageCanvas.height
-          );
-
-          ctx.drawImage(
-            canvas,
-            0,
-            offsetY,
-            canvas.width,
-            sliceHeight,
-            0,
-            0,
-            canvas.width,
-            sliceHeight
-          );
-
-          const image =
-            pageCanvas.toDataURL(
-              'image/png',
-              1
-            );
-
-          const imageHeight =
-            sliceHeight /
-            pxPerMm;
-
-          if (pageIndex > 0) {
-            pdf.addPage();
-          }
-
-          pdf.addImage(
-            image,
-            'PNG',
-            marginX,
-            marginY,
-            usableWidth,
-            imageHeight
-          );
-
-          offsetY +=
-            sliceHeight;
-
-          pageIndex++;
-        }
-
-        const safeTitle =
-          (
-            selectedDoc?.title ||
-            currentOrder?.docTitle ||
-            'Document'
-          )
-            .replace(
-              /[^a-zA-Z0-9À-ÿ -]/g,
-              ''
-            )
-            .replace(
-              /\s+/g,
-              '_'
-            );
-
-        pdf.save(
-          `${safeTitle}_DocExpress.pdf`
-        );
-      } catch (error) {
-        console.error(
-          'Erreur lors du téléchargement :',
-          error
-        );
-
-        alert(
-          'Une erreur est survenue lors de la génération du PDF.'
-        );
-      } finally {
-        setIsGeneratingPDF(
-          false
+      if (!ctx) {
+        throw new Error(
+          "Impossible de préparer la page PDF."
         );
       }
-    };
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(
+        0,
+        0,
+        pageCanvas.width,
+        pageCanvas.height
+      );
+
+      ctx.drawImage(
+        canvas,
+        0,
+        offsetY,
+        canvas.width,
+        sliceHeight,
+        0,
+        0,
+        canvas.width,
+        sliceHeight
+      );
+
+      const image = pageCanvas.toDataURL(
+        "image/png",
+        1
+      );
+
+      const imageHeight = sliceHeight / pxPerMm;
+
+      if (pageIndex > 0) {
+        pdf.addPage();
+      }
+
+      pdf.addImage(
+        image,
+        "PNG",
+        marginX,
+        marginY,
+        usableWidth,
+        imageHeight
+      );
+
+      offsetY += sliceHeight;
+      pageIndex += 1;
+    }
+
+    const safeTitle = (
+      currentOrder.docTitle ||
+      selectedDoc?.title ||
+      "Document"
+    )
+      .replace(/[^a-zA-Z0-9À-ÿ_-]/g, "-")
+      .replace(/-+/g, "-");
+
+    pdf.save(
+      `${safeTitle}-DocExpress.pdf`
+    );
+  } catch (error) {
+    console.error(
+      "Erreur lors du téléchargement du PDF :",
+      error
+    );
+
+    alert(
+      "Impossible de générer le PDF. Veuillez réessayer."
+    );
+  } finally {
+    if (
+      temporaryElement &&
+      temporaryElement.parentNode
+    ) {
+      temporaryElement.parentNode.removeChild(
+        temporaryElement
+      );
+    }
+
+    setIsGeneratingPDF(false);
+  }
+};
+
 
   // ============================================================
   // STYLE INPUTS
