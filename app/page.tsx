@@ -1316,19 +1316,6 @@ export default function Home() {
     Object.values(DOCUMENTS_CONFIG).sort(
       (a, b) => a.priceNumeric - b.priceNumeric
     );
-
-  // ============================================================
-  // SPLASH
-  // ============================================================
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
   // ============================================================
   // COMMANDES SUPABASE
   // ============================================================
