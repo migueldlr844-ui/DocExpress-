@@ -4577,234 +4577,456 @@ useEffect(() => {
               HOME
           ================================================== */}
 
-          {step ===
-            'home' && (
-            <div>
-
-              <div
+      {step ===
+  'home' && (
+  <div
+    style={{
+      maxWidth: '1100px',
+      margin: '0 auto',
+      padding: '0 1rem 3rem',
+      width: '100%',
+      boxSizing: 'border-box'
+    }}
+  >
+    {/* HERO */}
+    <section
+      style={{
+        padding:
+          '2.5rem 0 2rem',
+        borderBottom:
+          '1px solid rgba(255,255,255,.08)',
+        marginBottom:
+          '2.5rem'
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '.75rem',
+          marginBottom: '1.5rem'
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '46px',
+            height: '46px',
+            borderRadius: '12px',
+            backgroundColor: '#1C2541',
+            border:
+              '1px solid #3A506B',
+            flexShrink: 0
+          }}
+        >
+          <AppLogo size={34} />
+        </div>
+        <div>
+          <div
+            style={{
+              fontSize: '.95rem',
+              fontWeight: 700,
+              letterSpacing: '-.2px'
+            }}
+          >
+            DocExpress
+          </div>
+          <div
+            style={{
+              fontSize: '.72rem',
+              color: '#94A3B8',
+              marginTop: '2px'
+            }}
+          >
+            Documents professionnels
+          </div>
+        </div>
+      </div>
+      <div
+        style={{
+          maxWidth: '720px'
+        }}
+      >
+        <h1
+          style={{
+            fontSize:
+              'clamp(2rem, 6vw, 3.6rem)',
+            lineHeight: 1.05,
+            letterSpacing:
+              '-1.8px',
+            margin:
+              '0 0 1rem',
+            fontWeight: 800
+          }}
+        >
+          Vos documents.
+          <br />
+          <span
+            style={{
+              color: '#4CC9F0'
+            }}
+          >
+            Simplement.
+          </span>
+        </h1>
+        <p
+          style={{
+            color: '#A8B2C1',
+            fontSize:
+              '1rem',
+            lineHeight: 1.6,
+            maxWidth:
+              '580px',
+            margin: 0
+          }}
+        >
+          Créez rapidement des documents
+          professionnels adaptés à vos besoins,
+          directement depuis votre téléphone.
+        </p>
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '.7rem',
+          marginTop: '1.5rem'
+        }}
+      >
+        <span
+          style={{
+            padding:
+              '.5rem .8rem',
+            borderRadius:
+              '7px',
+            backgroundColor:
+              '#111B32',
+            border:
+              '1px solid #263653',
+            color:
+              '#CBD5E1',
+            fontSize:
+              '.75rem'
+          }}
+        >
+          Emploi
+        </span>
+        <span
+          style={{
+            padding:
+              '.5rem .8rem',
+            borderRadius:
+              '7px',
+            backgroundColor:
+              '#111B32',
+            border:
+              '1px solid #263653',
+            color:
+              '#CBD5E1',
+            fontSize:
+              '.75rem'
+          }}
+        >
+          Immobilier
+        </span>
+        <span
+          style={{
+            padding:
+              '.5rem .8rem',
+            borderRadius:
+              '7px',
+            backgroundColor:
+              '#111B32',
+            border:
+              '1px solid #263653',
+            color:
+              '#CBD5E1',
+            fontSize:
+              '.75rem'
+          }}
+        >
+          Business
+        </span>
+      </div>
+    </section>
+    {/* INTRODUCTION */}
+    <section
+      style={{
+        marginBottom:
+          '1.5rem'
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          justifyContent:
+            'space-between',
+          alignItems:
+            'flex-end',
+          gap: '1rem',
+          flexWrap: 'wrap'
+        }}
+      >
+        <div>
+          <p
+            style={{
+              margin:
+                '0 0 .35rem',
+              color:
+                '#4CC9F0',
+              fontSize:
+                '.72rem',
+              fontWeight:
+                700,
+              textTransform:
+                'uppercase',
+              letterSpacing:
+                '1.2px'
+            }}
+          >
+            Catalogue
+          </p>
+          <h2
+            style={{
+              margin: 0,
+              fontSize:
+                '1.5rem',
+              letterSpacing:
+                '-.5px'
+            }}
+          >
+            Choisissez votre document
+          </h2>
+        </div>
+        <span
+          style={{
+            color:
+              '#64748B',
+            fontSize:
+              '.8rem'
+          }}
+        >
+          {sortedDocuments.length} documents disponibles
+        </span>
+      </div>
+    </section>
+    {/* DOCUMENTS */}
+    <div
+      style={{
+        display:
+          'grid',
+        gridTemplateColumns:
+          'repeat(auto-fit, minmax(260px, 1fr))',
+        gap:
+          '1rem'
+      }}
+    >
+      {sortedDocuments.map(
+        doc => (
+          <div
+            key={doc.id}
+            className="card-hover"
+            onClick={() =>
+              handleSelectDoc(doc)
+            }
+            style={{
+              backgroundColor:
+                '#111A2E',
+              border:
+                '1px solid #263653',
+              borderRadius:
+                '14px',
+              padding:
+                '1.25rem',
+              cursor:
+                'pointer',
+              position:
+                'relative',
+              transition:
+                'border-color .2s ease, transform .2s ease, background-color .2s ease',
+              minHeight:
+                '190px',
+              display:
+                'flex',
+              flexDirection:
+                'column',
+              justifyContent:
+                'space-between',
+              boxSizing:
+                'border-box'
+            }}
+          >
+            {doc.badge && (
+              <span
                 style={{
-                  textAlign:
-                    'center',
-                  margin:
-                    '1.5rem 0 2.5rem'
+                  position:
+                    'absolute',
+                  top:
+                    '14px',
+                  right:
+                    '14px',
+                  backgroundColor:
+                    'rgba(76,201,240,.1)',
+                  color:
+                    '#4CC9F0',
+                  border:
+                    '1px solid rgba(76,201,240,.25)',
+                  fontSize:
+                    '.6rem',
+                  fontWeight:
+                    700,
+                  padding:
+                    '4px 7px',
+                  borderRadius:
+                    '5px',
+                  textTransform:
+                    'uppercase',
+                  letterSpacing:
+                    '.4px'
                 }}
               >
-
-                <div
-                  className="hero-logo-box"
-                  style={{
-                    display:
-                      'inline-block',
-                    padding:
-                      '1rem',
-                    borderRadius:
-                      '20px',
-                    backgroundColor:
-                      '#1C2541',
-                    marginBottom:
-                      '1rem',
-                    border:
-                      '1px solid #3A506B'
-                  }}
-                >
-                  <AppLogo
-                    size={60}
-                  />
-                </div>
-
-                <HeroText />
-
-              </div>
-
-              <EditorialList />
-
-              <h2
+                {doc.badge}
+              </span>
+            )}
+            <div>
+              <div
                 style={{
                   fontSize:
-                    '1.2rem',
-                  marginBottom:
-                    '1rem',
+                    '.68rem',
+                  color:
+                    '#64748B',
+                  fontWeight:
+                    700,
+                  textTransform:
+                    'uppercase',
                   letterSpacing:
-                    '.5px'
+                    '.8px',
+                  marginBottom:
+                    '.55rem',
+                  paddingRight:
+                    doc.badge
+                      ? '75px'
+                      : '0'
                 }}
               >
-                📄 Choisissez votre document :
-              </h2>
-
-              <div
+                {doc.category}
+              </div>
+              <h3
+                style={{
+                  fontSize:
+                    '1.05rem',
+                  margin:
+                    '0 0 .45rem',
+                  lineHeight:
+                    1.3,
+                  fontWeight:
+                    700
+                }}
+              >
+                {doc.title}
+              </h3>
+              <p
+                style={{
+                  fontSize:
+                    '.82rem',
+                  color:
+                    '#8E9AAF',
+                  margin: 0,
+                  lineHeight:
+                    1.5
+                }}
+              >
+                {doc.desc}
+              </p>
+            </div>
+            <div
+              style={{
+                display:
+                  'flex',
+                justifyContent:
+                  'space-between',
+                alignItems:
+                  'center',
+                marginTop:
+                  '1.25rem',
+                paddingTop:
+                  '.9rem',
+                borderTop:
+                  '1px solid rgba(255,255,255,.06)'
+              }}
+            >
+              <span
+                style={{
+                  fontSize:
+                    '.95rem',
+                  fontWeight:
+                    700,
+                  color:
+                    '#FFFFFF'
+                }}
+              >
+                {doc.price}
+              </span>
+              <span
                 style={{
                   display:
-                    'flex',
-                  flexDirection:
-                    'column',
+                    'inline-flex',
+                  alignItems:
+                    'center',
                   gap:
-                    '1rem'
+                    '.35rem',
+                  fontSize:
+                    '.75rem',
+                  fontWeight:
+                    700,
+                  color:
+                    '#4CC9F0'
                 }}
               >
-                {sortedDocuments.map(
-                  doc => (
-                    <div
-                      key={
-                        doc.id
-                      }
-                      className="card-hover"
-                      onClick={() =>
-                        handleSelectDoc(
-                          doc
-                        )
-                      }
-                      style={{
-                        backgroundColor:
-                          '#1C2541',
-                        border:
-                          '1px solid #3A506B',
-                        borderRadius:
-                          '12px',
-                        padding:
-                          '1.2rem',
-                        cursor:
-                          'pointer',
-                        position:
-                          'relative'
-                      }}
-                    >
-
-                      {doc.badge && (
-                        <span
-                          style={{
-                            position:
-                              'absolute',
-                            top:
-                              '12px',
-                            right:
-                              '12px',
-                            backgroundColor:
-                              '#F72585',
-                            color:
-                              '#FFFFFF',
-                            fontSize:
-                              '.65rem',
-                            fontWeight:
-                              'bold',
-                            padding:
-                              '3px 8px',
-                            borderRadius:
-                              '10px',
-                            textTransform:
-                              'uppercase'
-                          }}
-                        >
-                          {
-                            doc.badge
-                          }
-                        </span>
-                      )}
-
-                      <div
-                        style={{
-                          fontSize:
-                            '.75rem',
-                          color:
-                            '#4CC9F0',
-                          fontWeight:
-                            'bold',
-                          textTransform:
-                            'uppercase',
-                          marginBottom:
-                            '.3rem'
-                        }}
-                      >
-                        {
-                          doc.category
-                        }
-                      </div>
-
-                      <h3
-                        style={{
-                          fontSize:
-                            '1.1rem',
-                          margin:
-                            '0 0 .4rem',
-                          paddingRight:
-                            doc.badge
-                              ? '80px'
-                              : '0'
-                        }}
-                      >
-                        {
-                          doc.title
-                        }
-                      </h3>
-
-                      <p
-                        style={{
-                          fontSize:
-                            '.85rem',
-                          color:
-                            '#9CA3AF',
-                          margin:
-                            '0 0 1rem',
-                          lineHeight:
-                            '1.4'
-                        }}
-                      >
-                        {
-                          doc.desc
-                        }
-                      </p>
-
-                      <div
-                        style={{
-                          display:
-                            'flex',
-                          justifyContent:
-                            'space-between',
-                          alignItems:
-                            'center',
-                          borderTop:
-                            '1px solid rgba(255,255,255,.05)',
-                          paddingTop:
-                            '.8rem'
-                        }}
-                      >
-
-                        <span
-                          style={{
-                            fontSize:
-                              '1.1rem',
-                            fontWeight:
-                              'bold',
-                            color:
-                              '#4CC9F0'
-                          }}
-                        >
-                          {
-                            doc.price
-                          }
-                        </span>
-
-                        <span
-                          style={{
-                            fontSize:
-                              '.85rem',
-                            fontWeight:
-                              'bold'
-                          }}
-                        >
-                          Générer ➔
-                        </span>
-
-                      </div>
-
-                    </div>
-                  )
-                )}
-              </div>
-
+                Créer
+                <span
+                  style={{
+                    fontSize:
+                      '.95rem'
+                  }}
+                >
+                  →
+                </span>
+              </span>
             </div>
-          )}
-
-          {/* ==================================================
+          </div>
+        )
+      )}
+    </div>
+    {/* FOOTER MESSAGE */}
+    <div
+      style={{
+        marginTop:
+          '2.5rem',
+        padding:
+          '1rem 0',
+        borderTop:
+          '1px solid rgba(255,255,255,.06)',
+        textAlign:
+          'center'
+      }}
+    >
+      <p
+        style={{
+          margin: 0,
+          color:
+            '#64748B',
+          fontSize:
+            '.75rem'
+        }}
+      >
+        Des documents simples, propres et prêts à être utilisés.
+      </p>
+    </div>
+  </div>
+)}=================================================
               FORMULAIRE
           ================================================== */}
 
