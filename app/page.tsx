@@ -1394,55 +1394,39 @@ export default function Home() {
   // VÉRIFICATION AUTOMATIQUE DU PAIEMENT
   // ============================================================
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
+useEffect(() => {
+  let interval: NodeJS.Timeout;
 
-    if (
-      step === 'pending' &&
-      currentOrder
-    ) {
-      interval = setInterval(
-        async () => {
-          try {
-            const { data } =
-              await supabase
-                .from('orders')
-                .select('*')
-                .eq(
-                  'id',
-                  currentOrder.id
-                )
-                .single();
+  if (step === "pending" && currentOrder) {
+    interval = setInterval(async () => {
+      try {
+        const { data } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("id", currentOrder.id)
+          .single();
 
-            if (
-              data &&
-              data.status ===
-                'completed'
-            ) {
-              setCurrentOrder(
-                prev =>
-                  prev
-                    ? {
-                        ...prev,
-                        status:
-                          'APPROVED'
-                      }
-                    : null
-              );
+        if (data && data.status === "completed") {
+          setCurrentOrder((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: "APPROVED",
+                }
+              : null
+          );
 
-              setStep('success');
-            }
-          } catch (e) {
-            console.error(e);
-          }
-        },
-        3000
-      );
-    }
+          setStep("success");
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }, 3000);
+  }
 
-    return () =>
-      clearInterval(interval);
-  }, [step, currentOrder]);
+  return () => clearInterval(interval);
+}, [step, currentOrder]);
+
 
   // ============================================================
   // SÉLECTION DOCUMENT
