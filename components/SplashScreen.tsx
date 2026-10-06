@@ -8,6 +8,8 @@ const WORDS = [
   'QUITTANCE',
   'REÇU',
 ];
+const FONT_URL =
+  'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap';
 export default function SplashScreen({
   onFinish,
 }: {
@@ -17,27 +19,51 @@ export default function SplashScreen({
   const [phase, setPhase] = useState<
     'logo' | 'words' | 'tagline'
   >('logo');
+  // Chargement des polices premium
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = FONT_URL;
+    link.dataset.docExpressFont = 'true';
+    if (
+      !document.querySelector(
+        'link[data-doc-express-font="true"]'
+      )
+    ) {
+      document.head.appendChild(link);
+    }
+    return () => {
+      const existing = document.querySelector(
+        'link[data-doc-express-font="true"]'
+      );
+      if (existing) {
+        existing.remove();
+      }
+    };
+  }, []);
+  // Séquence d'ouverture
   useEffect(() => {
     const wordsTimer = setTimeout(() => {
       setPhase('words');
     }, 900);
     const taglineTimer = setTimeout(() => {
       setPhase('tagline');
-    }, 1900);
+    }, 2100);
     const finishTimer = setTimeout(() => {
       onFinish();
-    }, 3300);
+    }, 3600);
     return () => {
       clearTimeout(wordsTimer);
       clearTimeout(taglineTimer);
       clearTimeout(finishTimer);
     };
   }, [onFinish]);
+  // Défilement des documents
   useEffect(() => {
     if (phase !== 'words') return;
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % WORDS.length);
-    }, 250);
+    }, 420);
     return () => clearInterval(interval);
   }, [phase]);
   return (
@@ -45,17 +71,18 @@ export default function SplashScreen({
       initial={{ opacity: 1 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{
+        duration: 0.65,
+        ease: [0.22, 1, 0.36, 1],
+      }}
       style={{
         position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        inset: 0,
         width: '100vw',
         height: '100vh',
         minHeight: '100dvh',
-        backgroundColor: '#050B14',
+        background:
+          'radial-gradient(circle at 50% 42%, #101D3A 0%, #07101F 42%, #030811 100%)',
         color: '#FFFFFF',
         zIndex: 999999,
         display: 'flex',
@@ -63,38 +90,89 @@ export default function SplashScreen({
         justifyContent: 'center',
         overflow: 'hidden',
         isolation: 'isolate',
+        fontFamily:
+          "'DM Sans', sans-serif",
       }}
     >
-      {/* Lueur arrière */}
+      {/* Halo lumineux principal */}
       <motion.div
         initial={{
           opacity: 0,
-          scale: 0.7,
+          scale: 0.5,
         }}
         animate={{
-          opacity: 0.16,
+          opacity: 0.2,
           scale: 1,
         }}
         transition={{
-          duration: 1.4,
+          duration: 1.8,
+          ease: 'easeOut',
         }}
         style={{
           position: 'absolute',
-          width: '280px',
-          height: '280px',
+          width: '340px',
+          height: '340px',
           borderRadius: '50%',
-          backgroundColor: '#4361EE',
-          filter: 'blur(90px)',
+          background:
+            'radial-gradient(circle, #4361EE 0%, transparent 68%)',
+          filter: 'blur(45px)',
           pointerEvents: 'none',
         }}
       />
-      {/* Contenu */}
+      {/* Halo secondaire */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.1 }}
+        transition={{
+          duration: 2,
+          delay: 0.4,
+        }}
+        style={{
+          position: 'absolute',
+          width: '180px',
+          height: '180px',
+          borderRadius: '50%',
+          background:
+            'radial-gradient(circle, #4CC9F0 0%, transparent 70%)',
+          filter: 'blur(40px)',
+          transform:
+            'translate(100px, -110px)',
+          pointerEvents: 'none',
+        }}
+      />
+      {/* Ligne décorative haute */}
+      <motion.div
+        initial={{
+          scaleX: 0,
+          opacity: 0,
+        }}
+        animate={{
+          scaleX: 1,
+          opacity: 0.5,
+        }}
+        transition={{
+          duration: 1.1,
+          delay: 0.25,
+        }}
+        style={{
+          position: 'absolute',
+          top: '18%',
+          left: '50%',
+          transform:
+            'translateX(-50%)',
+          width: '90px',
+          height: '1px',
+          background:
+            'linear-gradient(90deg, transparent, #4CC9F0, transparent)',
+        }}
+      />
+      {/* Contenu principal */}
       <div
         style={{
           position: 'relative',
-          zIndex: 2,
+          zIndex: 5,
           width: 'calc(100% - 48px)',
-          maxWidth: '380px',
+          maxWidth: '430px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -105,8 +183,8 @@ export default function SplashScreen({
         <motion.div
           initial={{
             opacity: 0,
-            scale: 0.7,
-            rotate: -8,
+            scale: 0.55,
+            rotate: -12,
           }}
           animate={{
             opacity: 1,
@@ -114,59 +192,82 @@ export default function SplashScreen({
             rotate: 0,
           }}
           transition={{
-            duration: 0.7,
-            ease: 'easeOut',
+            duration: 0.8,
+            ease: [0.16, 1, 0.3, 1],
           }}
           style={{
-            width: '58px',
-            height: '58px',
-            borderRadius: '17px',
+            width: '62px',
+            height: '62px',
+            borderRadius: '19px',
             background:
-              'linear-gradient(135deg, #4361EE, #4CC9F0)',
+              'linear-gradient(135deg, #4361EE 0%, #4CC9F0 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             boxShadow:
-              '0 12px 40px rgba(67, 97, 238, 0.25)',
-            marginBottom: '18px',
+              '0 15px 50px rgba(67, 97, 238, 0.32)',
+            marginBottom: '22px',
+            position: 'relative',
           }}
         >
+          {/* Reflet */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '1px',
+              left: '8px',
+              right: '8px',
+              height: '18px',
+              borderRadius: '20px',
+              background:
+                'linear-gradient(180deg, rgba(255,255,255,0.24), transparent)',
+            }}
+          />
           <span
             style={{
-              fontSize: '26px',
-              fontWeight: 900,
+              position: 'relative',
+              fontFamily:
+                "'Plus Jakarta Sans', sans-serif",
+              fontSize: '27px',
+              fontWeight: 800,
+              letterSpacing: '-0.06em',
               color: '#FFFFFF',
             }}
           >
             D
           </span>
         </motion.div>
-        {/* Nom */}
+        {/* DOCEXPRESS */}
         <motion.h1
           initial={{
             opacity: 0,
-            y: 10,
+            y: 18,
+            letterSpacing: '0.38em',
           }}
           animate={{
             opacity: 1,
             y: 0,
+            letterSpacing: '0.20em',
           }}
           transition={{
-            duration: 0.6,
-            delay: 0.15,
+            duration: 0.9,
+            delay: 0.12,
+            ease: [0.16, 1, 0.3, 1],
           }}
           style={{
             margin: 0,
+            paddingLeft: '0.20em',
+            fontFamily:
+              "'Plus Jakarta Sans', sans-serif",
             fontSize: '30px',
             lineHeight: 1,
-            letterSpacing: '0.18em',
             fontWeight: 800,
             color: '#FFFFFF',
           }}
         >
           DOCEXPRESS
         </motion.h1>
-        {/* Ligne */}
+        {/* Sous-ligne */}
         <motion.div
           initial={{
             width: 0,
@@ -177,21 +278,22 @@ export default function SplashScreen({
             opacity: 1,
           }}
           transition={{
-            duration: 0.7,
-            delay: 0.45,
+            duration: 0.9,
+            delay: 0.55,
+            ease: 'easeOut',
           }}
           style={{
             height: '1px',
-            marginTop: '25px',
-            marginBottom: '25px',
+            marginTop: '27px',
             background:
-              'linear-gradient(90deg, transparent, #4361EE, transparent)',
+              'linear-gradient(90deg, transparent 0%, rgba(67,97,238,0.15) 15%, #4361EE 50%, rgba(76,201,240,0.15) 85%, transparent 100%)',
           }}
         />
-        {/* Zone de texte */}
+        {/* Zone documents */}
         <div
           style={{
-            height: '55px',
+            height: '92px',
+            width: '100%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -203,98 +305,205 @@ export default function SplashScreen({
                 key={WORDS[index]}
                 initial={{
                   opacity: 0,
-                  y: 8,
+                  y: 22,
+                  filter: 'blur(7px)',
+                  scale: 0.94,
                 }}
                 animate={{
                   opacity: 1,
                   y: 0,
+                  filter: 'blur(0px)',
+                  scale: 1,
                 }}
                 exit={{
                   opacity: 0,
-                  y: -8,
+                  y: -22,
+                  filter: 'blur(7px)',
+                  scale: 1.04,
                 }}
                 transition={{
-                  duration: 0.18,
+                  duration: 0.28,
+                  ease: [0.16, 1, 0.3, 1],
                 }}
                 style={{
-                  fontSize: '12px',
-                  letterSpacing: '0.3em',
+                  position: 'absolute',
+                  fontFamily:
+                    "'Plus Jakarta Sans', sans-serif",
+                  fontSize:
+                    'clamp(22px, 7vw, 32px)',
+                  lineHeight: 1,
                   fontWeight: 700,
-                  color: '#4CC9F0',
+                  letterSpacing: '0.16em',
+                  paddingLeft: '0.16em',
+                  color: '#F8FAFF',
+                  textShadow:
+                    '0 0 30px rgba(76,201,240,0.18)',
                 }}
               >
                 {WORDS[index]}
               </motion.div>
             )}
             {phase === 'tagline' && (
-              <motion.p
+              <motion.div
                 initial={{
                   opacity: 0,
-                  y: 8,
+                  y: 18,
+                  filter: 'blur(5px)',
                 }}
                 animate={{
                   opacity: 1,
                   y: 0,
+                  filter: 'blur(0px)',
                 }}
                 transition={{
-                  duration: 0.45,
+                  duration: 0.75,
+                  ease: [0.16, 1, 0.3, 1],
                 }}
                 style={{
-                  margin: 0,
-                  fontSize: '13px',
-                  lineHeight: 1.7,
-                  color: '#CBD5E1',
-                  letterSpacing: '0.04em',
+                  position: 'absolute',
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
                 }}
               >
-                Vos documents. Votre activité.
-                <br />
-                <span
+                <p
                   style={{
-                    color: '#FFFFFF',
+                    margin: 0,
+                    fontFamily:
+                      "'DM Sans', sans-serif",
+                    fontSize: '15px',
+                    lineHeight: 1.65,
+                    fontWeight: 400,
+                    letterSpacing:
+                      '0.015em',
+                    color: '#CBD5E1',
+                  }}
+                >
+                  Vos documents.
+                  Votre activité.
+                </p>
+                <p
+                  style={{
+                    margin: '3px 0 0',
+                    fontFamily:
+                      "'Plus Jakarta Sans', sans-serif",
+                    fontSize: '15px',
+                    lineHeight: 1.5,
                     fontWeight: 600,
+                    letterSpacing:
+                      '0.01em',
+                    color: '#FFFFFF',
                   }}
                 >
                   En quelques minutes.
-                </span>
-              </motion.p>
+                </p>
+              </motion.div>
             )}
           </AnimatePresence>
         </div>
-        {/* Points de chargement */}
+        {/* Indicateur de progression */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
+          initial={{
+            opacity: 0,
+            width: 0,
+          }}
+          animate={{
+            opacity: 1,
+            width: '90px',
+          }}
+          transition={{
+            duration: 0.8,
+            delay: 1,
+          }}
           style={{
-            display: 'flex',
-            gap: '6px',
-            marginTop: '30px',
+            height: '2px',
+            background:
+              'linear-gradient(90deg, #4361EE, #4CC9F0)',
+            borderRadius: '999px',
+            marginTop: '10px',
+            boxShadow:
+              '0 0 14px rgba(76,201,240,0.25)',
+          }}
+        />
+        {/* Petit label */}
+        <motion.p
+          initial={{
+            opacity: 0,
+          }}
+          animate={{
+            opacity: 0.55,
+          }}
+          transition={{
+            duration: 0.8,
+            delay: 1.2,
+          }}
+          style={{
+            margin: '20px 0 0',
+            fontFamily:
+              "'DM Sans', sans-serif",
+            fontSize: '9px',
+            fontWeight: 500,
+            letterSpacing: '0.28em',
+            textTransform: 'uppercase',
+            color: '#94A3B8',
           }}
         >
-          {[0, 1, 2].map((dot) => (
-            <motion.span
-              key={dot}
-              animate={{
-                opacity: [0.25, 1, 0.25],
-                scale: [1, 1.2, 1],
-              }}
-              transition={{
-                duration: 1,
-                repeat: Infinity,
-                delay: dot * 0.15,
-              }}
-              style={{
-                display: 'block',
-                width: '5px',
-                height: '5px',
-                borderRadius: '50%',
-                backgroundColor: '#4CC9F0',
-              }}
-            />
-          ))}
-        </motion.div>
+          DOCUMENTS • SIMPLE • RAPIDE
+        </motion.p>
       </div>
+      {/* Décoration bas gauche */}
+      <motion.div
+        initial={{
+          opacity: 0,
+          x: -30,
+        }}
+        animate={{
+          opacity: 0.25,
+          x: 0,
+        }}
+        transition={{
+          duration: 1,
+          delay: 0.5,
+        }}
+        style={{
+          position: 'absolute',
+          bottom: '8%',
+          left: '7%',
+          width: '55px',
+          height: '55px',
+          borderLeft:
+            '1px solid rgba(76,201,240,0.5)',
+          borderBottom:
+            '1px solid rgba(76,201,240,0.5)',
+        }}
+      />
+      {/* Décoration haut droite */}
+      <motion.div
+        initial={{
+          opacity: 0,
+          x: 30,
+        }}
+        animate={{
+          opacity: 0.2,
+          x: 0,
+        }}
+        transition={{
+          duration: 1,
+          delay: 0.7,
+        }}
+        style={{
+          position: 'absolute',
+          top: '8%',
+          right: '7%',
+          width: '55px',
+          height: '55px',
+          borderTop:
+            '1px solid rgba(67,97,238,0.6)',
+          borderRight:
+            '1px solid rgba(67,97,238,0.6)',
+        }}
+      />
     </motion.div>
   );
 }
