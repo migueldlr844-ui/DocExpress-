@@ -1048,13 +1048,6 @@ const docHeader = (
       ">
         Réf. ${escapeHtml(reference)}
       </div>
-      <div style="
-        font-size:10px;
-        color:#6B7280;
-        margin-top:2px;
-      ">
-        ${todayFrench()}
-      </div>
     </div>
   </div>
 `;
